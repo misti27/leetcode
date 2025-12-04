@@ -12,6 +12,8 @@ export interface ContentBlock {
   caption?: string; // For images
 }
 
+export type MasteryStatus = 'learning' | 'mastered';
+
 export interface Problem {
   id: string;
   title: string;
@@ -21,6 +23,15 @@ export interface Problem {
   blocks: ContentBlock[];
   lastEdited: number;
   isFavorite: boolean;
+  status: MasteryStatus;
+}
+
+export interface ActivityLog {
+  id: string;
+  problemId: string;
+  problemTitle: string;
+  type: 'create' | 'master'; // 'create' = added (learning), 'master' = mastered
+  timestamp: number;
 }
 
 export interface NavItem {
