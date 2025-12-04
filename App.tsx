@@ -1002,6 +1002,18 @@ export default function App() {
     }
   };
 
+  const getProblemNumber = (p: Problem) => {
+    const match = p.title.trim().match(/^(\d+)[.、\s]/); // Match "123.", "123、", "123 "
+    if (match) {
+      return parseInt(match[1], 10);
+    }
+    // If ID is simple number (like mock data '46'), use it
+    if (/^\d+$/.test(p.id) && p.id.length < 6) {
+       return parseInt(p.id, 10);
+    }
+    return 999999999; // Huge number for non-numbered
+  };
+
   const compareIds = (idA: string, idB: string) => {
     return idA.localeCompare(idB, undefined, { numeric: true });
   };
@@ -1018,7 +1030,16 @@ export default function App() {
         break;
       case 'id': 
       default: 
-        result = compareIds(a.id, b.id); // Default: 1 -> 99
+        {
+           const numA = getProblemNumber(a);
+           const numB = getProblemNumber(b);
+           if (numA !== numB) {
+             result = numA - numB;
+           } else {
+             // Fallback to internal ID (creation time usually)
+             result = a.id.localeCompare(b.id);
+           }
+        }
         break;
     }
     // If reversed, flip the result
@@ -1289,11 +1310,14 @@ export default function App() {
                               <div 
                                 key={p.id} 
                                 onClick={() => handleSelectProblem(p.id)}
-                                className={`pl-10 pr-4 py-2 text-xs flex items-center justify-between cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${selectedId === p.id && view === 'problem' ? 'border-r-2 border-indigo-500 bg-black/5 dark:bg-white/10' : ''}`}
+                                className={`pl-8 pr-4 py-2 text-xs flex items-center justify-between cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${selectedId === p.id && view === 'problem' ? 'border-r-2 border-indigo-500 bg-black/5 dark:bg-white/10' : ''}`}
                               >
-                                 <span className={`truncate ${getDifficultyTextColor(p.difficulty)} ${selectedId === p.id && view === 'problem' ? 'font-bold' : ''}`}>
-                                   {p.title}
-                                 </span>
+                                 <div className="flex items-center gap-2 min-w-0">
+                                   <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${p.status === 'mastered' ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                                   <span className={`truncate ${getDifficultyTextColor(p.difficulty)} ${selectedId === p.id && view === 'problem' ? 'font-bold' : ''}`}>
+                                     {p.title}
+                                   </span>
+                                 </div>
                                  {p.isFavorite && <Star size={10} className="text-yellow-400 fill-current flex-shrink-0" />}
                               </div>
                            ))}
