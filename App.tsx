@@ -324,6 +324,9 @@ const PersonalDashboard = ({
 
   // --- Heatmap Logic ---
   
+  // Filter logs for heatmap to only include "create" (added problems)
+  const submissionLogs = activityLogs.filter(l => l.type === 'create');
+
   // 1. Calculate Date Range (Past 365 days aligned to weeks)
   const today = new Date();
   const endDate = new Date(today);
@@ -347,20 +350,19 @@ const PersonalDashboard = ({
      weeks.push(week);
   }
 
-  // 3. Map logs to counts
+  // 3. Map logs to counts (using submissionLogs only)
   const activityMap = new Map<string, number>();
-  activityLogs.forEach(log => {
+  submissionLogs.forEach(log => {
     const dateStr = new Date(log.timestamp).toDateString();
     activityMap.set(dateStr, (activityMap.get(dateStr) || 0) + 1);
   });
   
   // 4. Calculate Heatmap Stats
-  const totalActivities = activityLogs.length;
-  const activeDays = new Set(activityLogs.map(l => new Date(l.timestamp).toDateString())).size;
+  const totalActivities = submissionLogs.length;
+  const activeDays = new Set(submissionLogs.map(l => new Date(l.timestamp).toDateString())).size;
   
   // Calculate Streak
   let currentStreak = 0;
-  let maxStreak = 0;
   // Simple streak calc (iterate backwards from today)
   let checkDate = new Date();
   while (true) {
@@ -511,7 +513,7 @@ const PersonalDashboard = ({
                      {week.map((day, dIndex) => (
                        <div 
                          key={dIndex}
-                         className={`w-[12px] h-[12px] rounded-[3px] ${getCellColor(activityMap.get(day.toDateString()) || 0)}`}
+                         className={`w-[13px] h-[13px] rounded-[3px] ${getCellColor(activityMap.get(day.toDateString()) || 0)}`}
                          title={`${day.toLocaleDateString()} : ${activityMap.get(day.toDateString()) || 0} 次提交`}
                        ></div>
                      ))}
@@ -525,7 +527,7 @@ const PersonalDashboard = ({
                     <span 
                       key={i} 
                       className="absolute top-0"
-                      style={{ left: `${m.index * 15}px` }} // 12px width + 3px gap = 15px pitch
+                      style={{ left: `${m.index * 16}px` }} // 13px width + 3px gap = 16px pitch
                     >
                       {m.label}
                     </span>
@@ -536,11 +538,11 @@ const PersonalDashboard = ({
           
           <div className="flex items-center justify-end gap-1 mt-2 text-xs text-gray-400">
              <span>Less</span>
-             <div className={`w-[12px] h-[12px] rounded-[3px] ${theme === 'dark' ? 'bg-[#161b22]' : 'bg-[#ebedf0]'}`}></div>
-             <div className={`w-[12px] h-[12px] rounded-[3px] ${theme === 'dark' ? 'bg-[#0e4429]' : 'bg-[#9be9a8]'}`}></div>
-             <div className={`w-[12px] h-[12px] rounded-[3px] ${theme === 'dark' ? 'bg-[#006d32]' : 'bg-[#40c463]'}`}></div>
-             <div className={`w-[12px] h-[12px] rounded-[3px] ${theme === 'dark' ? 'bg-[#26a641]' : 'bg-[#30a14e]'}`}></div>
-             <div className={`w-[12px] h-[12px] rounded-[3px] ${theme === 'dark' ? 'bg-[#39d353]' : 'bg-[#216e39]'}`}></div>
+             <div className={`w-[13px] h-[13px] rounded-[3px] ${theme === 'dark' ? 'bg-[#161b22]' : 'bg-[#ebedf0]'}`}></div>
+             <div className={`w-[13px] h-[13px] rounded-[3px] ${theme === 'dark' ? 'bg-[#0e4429]' : 'bg-[#9be9a8]'}`}></div>
+             <div className={`w-[13px] h-[13px] rounded-[3px] ${theme === 'dark' ? 'bg-[#006d32]' : 'bg-[#40c463]'}`}></div>
+             <div className={`w-[13px] h-[13px] rounded-[3px] ${theme === 'dark' ? 'bg-[#26a641]' : 'bg-[#30a14e]'}`}></div>
+             <div className={`w-[13px] h-[13px] rounded-[3px] ${theme === 'dark' ? 'bg-[#39d353]' : 'bg-[#216e39]'}`}></div>
              <span>More</span>
           </div>
       </div>
