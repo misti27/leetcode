@@ -1,6 +1,11 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { ContentBlock, BlockType } from '../types';
-import { Trash2, GripVertical, Image as ImageIcon, Code, Type, MessageSquare, Eye, Edit2 } from 'lucide-react';
+import { 
+  Trash2, GripVertical, Image as ImageIcon, Code, Type, MessageSquare, 
+  Bold, Italic, Link as LinkIcon, Quote, List, ListOrdered, 
+  Minus, Sigma, Smile, Table
+} from 'lucide-react';
 import { BlockRenderer } from './BlockRenderer';
 
 interface BlockEditorProps {
@@ -21,16 +26,113 @@ const EditorBlockItem = ({
 }: any) => {
   const [isPreview, setIsPreview] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Track which language we are currently editing
+  const [editingLang, setEditingLang] = useState(block.language || 'java');
+
+  // Sync editingLang if block.language changes externally (e.g. initial load)
+  useEffect(() => {
+    if (block.language && !block.codeSnippets) {
+       setEditingLang(block.language);
+    } else if (block.language && block.codeSnippets && block.codeSnippets[block.language]) {
+       // if we have snippets, we can stick to current or update
+    }
+  }, []);
 
   // Auto-resize textarea effect
   useEffect(() => {
     if ((block.type === 'text' || block.type === 'code' || block.type === 'callout') && textareaRef.current && !isPreview) {
-      // Reset height to auto to get the correct scrollHeight for shrinking
       textareaRef.current.style.height = 'auto';
-      // Set height to scrollHeight to fit content
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
-  }, [block.content, isPreview, block.type]);
+  }, [block.content, block.codeSnippets, editingLang, isPreview, block.type]);
+
+  const insertFormat = (before: string, after: string = '') => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = block.content;
+    const selectedText = text.substring(start, end);
+    
+    // Check if already formatted (basic check)
+    // In a real app, this would be more robust.
+    const newText = text.substring(0, start) + before + selectedText + after + text.substring(end);
+    
+    updateBlock(block.id, { content: newText });
+    
+    // Restore focus and cursor
+    setTimeout(() => {
+      textarea.focus();
+      // If no text was selected, place cursor inside tags
+      const cursorPos = selectedText.length === 0 ? start + before.length : start + before.length + selectedText.length + after.length;
+      textarea.setSelectionRange(cursorPos, cursorPos);
+    }, 0);
+  };
+
+  const renderToolbar = () => (
+    <div className={`flex flex-wrap items-center gap-1 p-1 mb-2 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'}`}>
+      <button onClick={() => insertFormat('### ')} className={`p-1.5 rounded hover:bg-black/5 ${theme === 'dark' ? 'hover:bg-white/10 text-gray-300' : 'text-gray-600'}`} title="标题"><Type size={16} /></button>
+      <button onClick={() => insertFormat('**', '**')} className={`p-1.5 rounded hover:bg-black/5 ${theme === 'dark' ? 'hover:bg-white/10 text-gray-300' : 'text-gray-600'}`} title="加粗"><Bold size={16} /></button>
+      <button onClick={() => insertFormat('*', '*')} className={`p-1.5 rounded hover:bg-black/5 ${theme === 'dark' ? 'hover:bg-white/10 text-gray-300' : 'text-gray-600'}`} title="斜体"><Italic size={16} /></button>
+      <button onClick={() => insertFormat('`', '`')} className={`p-1.5 rounded hover:bg-black/5 ${theme === 'dark' ? 'hover:bg-white/10 text-gray-300' : 'text-gray-600'}`} title="行内代码"><Code size={16} /></button>
+      <button onClick={() => insertFormat('[', '](url)')} className={`p-1.5 rounded hover:bg-black/5 ${theme === 'dark' ? 'hover:bg-white/10 text-gray-300' : 'text-gray-600'}`} title="链接"><LinkIcon size={16} /></button>
+      <button onClick={() => insertFormat('![', '](url)')} className={`p-1.5 rounded hover:bg-black/5 ${theme === 'dark' ? 'hover:bg-white/10 text-gray-300' : 'text-gray-600'}`} title="图片"><ImageIcon size={16} /></button>
+      <button onClick={() => insertFormat('> ')} className={`p-1.5 rounded hover:bg-black/5 ${theme === 'dark' ? 'hover:bg-white/10 text-gray-300' : 'text-gray-600'}`} title="引用"><Quote size={16} /></button>
+      <button onClick={() => insertFormat('- ')} className={`p-1.5 rounded hover:bg-black/5 ${theme === 'dark' ? 'hover:bg-white/10 text-gray-300' : 'text-gray-600'}`} title="无序列表"><List size={16} /></button>
+      <button onClick={() => insertFormat('1. ')} className={`p-1.5 rounded hover:bg-black/5 ${theme === 'dark' ? 'hover:bg-white/10 text-gray-300' : 'text-gray-600'}`} title="有序列表"><ListOrdered size={16} /></button>
+      <button onClick={() => insertFormat('---\n')} className={`p-1.5 rounded hover:bg-black/5 ${theme === 'dark' ? 'hover:bg-white/10 text-gray-300' : 'text-gray-600'}`} title="分割线"><Minus size={16} /></button>
+      <button onClick={() => insertFormat('$ ', ' $')} className={`p-1.5 rounded hover:bg-black/5 ${theme === 'dark' ? 'hover:bg-white/10 text-gray-300' : 'text-gray-600'}`} title="数学公式"><Sigma size={16} /></button>
+      <button onClick={() => insertFormat('👍')} className={`p-1.5 rounded hover:bg-black/5 ${theme === 'dark' ? 'hover:bg-white/10 text-gray-300' : 'text-gray-600'}`} title="Emoji"><Smile size={16} /></button>
+      <button onClick={() => insertFormat('| header | header |\n| --- | --- |\n| cell | cell |')} className={`p-1.5 rounded hover:bg-black/5 ${theme === 'dark' ? 'hover:bg-white/10 text-gray-300' : 'text-gray-600'}`} title="表格"><Table size={16} /></button>
+      
+      <div className="flex-1"></div>
+      
+      <button 
+        onClick={() => setIsPreview(true)}
+        className="text-xs text-blue-600 hover:text-blue-800 font-medium px-2"
+      >
+        关闭
+      </button>
+    </div>
+  );
+
+  // Helper to handle code change for specific language
+  const handleCodeChange = (newCode: string) => {
+    // We update 'codeSnippets' map.
+    // Also update 'content' and 'language' as a fallback/default for migration
+    const newSnippets = { ...(block.codeSnippets || {}), [editingLang]: newCode };
+    
+    // If we are editing the "primary" language, also update block.content for backward compat
+    const isPrimary = editingLang === (block.language || 'java');
+    
+    updateBlock(block.id, {
+      codeSnippets: newSnippets,
+      content: isPrimary ? newCode : block.content, // only update content if primary, but logic can vary
+      language: block.language // keep primary language
+    });
+  };
+
+  const handleLangChange = (newLang: string) => {
+    setEditingLang(newLang);
+    // When we switch language, we might want to ensure it exists in snippets
+    // If not, maybe copy current content? No, better start empty or previous value.
+    const currentCode = block.codeSnippets?.[newLang] || '';
+    
+    // Optionally update the block's "primary" language if we want the view to switch to this lang
+    // This allows the Read Mode to open on the last edited language
+    updateBlock(block.id, { language: newLang });
+  };
+
+  const getCurrentCode = () => {
+    if (block.codeSnippets && block.codeSnippets[editingLang] !== undefined) {
+      return block.codeSnippets[editingLang];
+    }
+    // Fallback: if we are on the primary language, use block.content. 
+    // Otherwise empty string
+    if (editingLang === block.language) return block.content;
+    return '';
+  };
 
   return (
     <div className={`group relative border rounded-lg p-3 transition-colors ${s.cardBg} ${s.cardBorder} ${s.hoverBorder}`}>
@@ -73,33 +175,36 @@ const EditorBlockItem = ({
           {/* TEXT BLOCK */}
           {block.type === 'text' && (
             <div className="space-y-2">
-              <div className="flex items-center justify-between mb-2">
-                 <div className={`flex items-center p-1 rounded-md ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'}`}>
-                    <button
-                      onClick={() => setIsPreview(false)}
-                      className={`px-3 py-1 text-xs font-medium rounded transition-all ${!isPreview ? (theme === 'dark' ? 'bg-gray-700 text-white shadow-sm' : 'bg-white text-indigo-600 shadow-sm') : 'text-gray-500 hover:text-gray-700'}`}
-                    >
-                      编辑
-                    </button>
-                    <button
-                      onClick={() => setIsPreview(true)}
-                      className={`px-3 py-1 text-xs font-medium rounded transition-all ${isPreview ? (theme === 'dark' ? 'bg-gray-700 text-white shadow-sm' : 'bg-white text-indigo-600 shadow-sm') : 'text-gray-500 hover:text-gray-700'}`}
-                    >
-                      预览
-                    </button>
-                 </div>
-                 <span className={`text-[10px] ${s.placeholder}`}>支持 Markdown & LaTeX</span>
-              </div>
+              {/* Only show toolbar if NOT in preview mode */}
+              {!isPreview && (
+                <div className={`rounded-md ${theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-50/50'}`}>
+                  {renderToolbar()}
+                </div>
+              )}
 
               {isPreview ? (
-                <div className={`p-4 rounded-md border min-h-[4rem] ${theme === 'dark' ? 'border-gray-700 bg-gray-900/50' : 'border-gray-100 bg-gray-50/50'}`}>
-                   <BlockRenderer block={block} theme={theme} />
+                <div className="space-y-2">
+                   <div className="flex justify-between items-center">
+                     <div className="flex items-center gap-2">
+                       <Type size={14} className="text-gray-400"/>
+                       <span className="text-xs text-gray-400">预览模式</span>
+                     </div>
+                     <button
+                        onClick={() => setIsPreview(false)}
+                        className={`px-3 py-1 text-xs font-medium rounded transition-all ${theme === 'dark' ? 'bg-gray-700 text-white shadow-sm' : 'bg-white text-indigo-600 shadow-sm border'}`}
+                      >
+                        编辑
+                      </button>
+                   </div>
+                   <div className={`p-4 rounded-md border min-h-[4rem] ${theme === 'dark' ? 'border-gray-700 bg-gray-900/50' : 'border-gray-100 bg-gray-50/50'}`}>
+                      <BlockRenderer block={block} theme={theme} />
+                   </div>
                 </div>
               ) : (
                 <textarea
                   ref={textareaRef}
-                  className={`w-full p-2 border-none resize-none focus:ring-0 text-base leading-relaxed ${s.cardBg} ${s.text} ${s.placeholder}`}
-                  placeholder="输入文本内容..."
+                  className={`w-full p-2 border-none resize-none focus:ring-0 text-base leading-relaxed whitespace-pre-wrap ${s.cardBg} ${s.text} ${s.placeholder}`}
+                  placeholder="输入文本内容... (支持 Markdown & LaTeX)"
                   rows={1}
                   value={block.content}
                   onChange={(e) => updateBlock(block.id, { content: e.target.value })}
@@ -114,8 +219,8 @@ const EditorBlockItem = ({
             <div className="space-y-2">
               <div className="flex items-center justify-between mb-2">
                 <select 
-                  value={block.language}
-                  onChange={(e) => updateBlock(block.id, { language: e.target.value })}
+                  value={editingLang}
+                  onChange={(e) => handleLangChange(e.target.value)}
                   className={`text-xs border rounded px-2 py-1 focus:outline-none focus:border-indigo-500 ${s.inputBg} ${s.inputBorder} ${s.text}`}
                 >
                   <option value="java">Java</option>
@@ -128,16 +233,16 @@ const EditorBlockItem = ({
                 </select>
                 <div className="flex items-center gap-1 text-xs text-gray-400">
                   <Code size={12} />
-                  <span>代码块</span>
+                  <span>多语言代码块</span>
                 </div>
               </div>
               <textarea
                 ref={textareaRef}
                 className={`w-full p-3 font-mono text-sm border rounded-md focus:ring-1 focus:ring-indigo-500 focus:outline-none resize-none ${s.inputBg} ${s.inputBorder} ${s.text} ${s.placeholder}`}
-                placeholder="// 粘贴代码到这里..."
+                placeholder={`// 粘贴 ${editingLang} 代码到这里...`}
                 rows={3}
-                value={block.content}
-                onChange={(e) => updateBlock(block.id, { content: e.target.value })}
+                value={getCurrentCode()}
+                onChange={(e) => handleCodeChange(e.target.value)}
                 style={{ minHeight: '120px', overflow: 'hidden' }}
               />
             </div>
@@ -201,6 +306,7 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({ blocks, onChange, them
       type,
       content: '',
       language: type === 'code' ? 'java' : undefined,
+      codeSnippets: type === 'code' ? { 'java': '' } : undefined
     };
     onChange([...blocks, newBlock]);
   };

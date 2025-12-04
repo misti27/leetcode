@@ -1,3 +1,4 @@
+
 export type Difficulty = 'Easy' | 'Medium' | 'Hard';
 
 export type BlockType = 'text' | 'code' | 'image' | 'callout';
@@ -5,8 +6,9 @@ export type BlockType = 'text' | 'code' | 'image' | 'callout';
 export interface ContentBlock {
   id: string;
   type: BlockType;
-  content: string; // Text content, code string, or image URL
-  language?: string; // For code blocks
+  content: string; // Text content, or primary code string, or image URL
+  language?: string; // For code blocks (default/active language)
+  codeSnippets?: Record<string, string>; // Map of language -> code
   caption?: string; // For images
 }
 

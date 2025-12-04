@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   Menu, Search, BookOpen, Star, Plus, ExternalLink, 
@@ -22,7 +23,11 @@ const INITIAL_PROBLEMS: Problem[] = [
       { id: '101', type: 'text', content: '给定一个不含重复数字的数组 `nums` ，返回其 **所有可能的全排列** 。你可以 **按任意顺序** 返回答案。' },
       { id: '102', type: 'callout', content: '注意：输入数组中的整数是互不相同的，这意味着我们不需要处理重复元素带来的去重问题。' },
       { id: '103', type: 'text', content: '### 解题思路：回溯算法\n\n全排列问题是典型的回溯算法应用场景。我们需要穷举所有可能的排列组合。\n\n**核心思想**：\n1. **路径**：也就是已经做出的选择。\n2. **选择列表**：当前可以做出的选择。\n3. **结束条件**：到达决策树底层，无法再做选择。\n\n我们可以将问题看作一棵 $N$ 叉树。' },
-      { id: '104', type: 'code', language: 'java', content: `class Solution {
+      { 
+        id: '104', 
+        type: 'code', 
+        language: 'java', 
+        content: `class Solution {
 
     List<List<Integer>> res = new LinkedList<>();
 
@@ -64,7 +69,121 @@ const INITIAL_PROBLEMS: Problem[] = [
             used[i] = false;
         }
     }
-}` },
+}`,
+        codeSnippets: {
+          java: `class Solution {
+
+    List<List<Integer>> res = new LinkedList<>();
+
+    /* 主函数，输入一组不重复的数字，返回它们的全排列 */
+    List<List<Integer>> permute(int[] nums) {
+        // 记录「路径」
+        LinkedList<Integer> track = new LinkedList<>();
+        // 「路径」中的元素会被标记为 true，避免重复使用
+        boolean[] used = new boolean[nums.length];
+
+        backtrack(nums, track, used);
+        return res;
+    }
+
+    void backtrack(int[] nums, LinkedList<Integer> track, boolean[] used) {
+        if (track.size() == nums.length) {
+            res.add(new LinkedList(track));
+            return;
+        }
+
+        for (int i = 0; i < nums.length; i++) {
+            if (used[i]) continue;
+            
+            track.add(nums[i]);
+            used[i] = true;
+            backtrack(nums, track, used);
+            track.removeLast();
+            used[i] = false;
+        }
+    }
+}`,
+          python: `class Solution:
+    def permute(self, nums: List[int]) -> List[List[int]]:
+        res = []
+        track = []
+        used = [False] * len(nums)
+        
+        def backtrack(track, used):
+            if len(track) == len(nums):
+                res.append(track[:])
+                return
+            
+            for i in range(len(nums)):
+                if used[i]:
+                    continue
+                
+                track.append(nums[i])
+                used[i] = True
+                backtrack(track, used)
+                track.pop()
+                used[i] = False
+                
+        backtrack(track, used)
+        return res`,
+          cpp: `class Solution {
+    vector<vector<int>> res;
+    
+    void backtrack(vector<int>& nums, vector<int>& track, vector<bool>& used) {
+        if (track.size() == nums.size()) {
+            res.push_back(track);
+            return;
+        }
+        
+        for (int i = 0; i < nums.size(); i++) {
+            if (used[i]) continue;
+            
+            track.push_back(nums[i]);
+            used[i] = true;
+            backtrack(nums, track, used);
+            track.pop_back();
+            used[i] = false;
+        }
+    }
+    
+public:
+    vector<vector<int>> permute(vector<int>& nums) {
+        vector<int> track;
+        vector<bool> used(nums.size(), false);
+        backtrack(nums, track, used);
+        return res;
+    }
+};`,
+          javascript: `/**
+ * @param {number[]} nums
+ * @return {number[][]}
+ */
+var permute = function(nums) {
+    const res = [];
+    const used = new Array(nums.length).fill(false);
+    
+    const backtrack = (track) => {
+        if (track.length === nums.length) {
+            res.push([...track]);
+            return;
+        }
+        
+        for (let i = 0; i < nums.length; i++) {
+            if (used[i]) continue;
+            
+            track.push(nums[i]);
+            used[i] = true;
+            backtrack(track);
+            track.pop();
+            used[i] = false;
+        }
+    };
+    
+    backtrack([]);
+    return res;
+};`
+        }
+      },
       { id: '105', type: 'text', content: '### 复杂度分析\n\n- **时间复杂度**: $O(n \\times n!)$，其中 $n$ 为数组长度。全排列共有 $n!$ 种，每次复制需要 $O(n)$。\n- **空间复杂度**: $O(n)$，递归树深度为 $n$，`track` 列表长度为 $n$。' }
     ]
   },
@@ -78,7 +197,11 @@ const INITIAL_PROBLEMS: Problem[] = [
     lastEdited: Date.now() - 100000,
     blocks: [
       { id: '201', type: 'text', content: '请你设计并实现一个满足  LRU (最近最少使用) 缓存 约束的数据结构。' },
-      { id: '203', type: 'code', language: 'javascript', content: `/**
+      { 
+        id: '203', 
+        type: 'code', 
+        language: 'javascript', 
+        content: `/**
  * @param {number} capacity
  */
 var LRUCache = function(capacity) {
@@ -98,7 +221,31 @@ LRUCache.prototype.get = function(key) {
         return val;
     }
     return -1;
-};` }
+};`,
+        codeSnippets: {
+          javascript: `/**
+ * @param {number} capacity
+ */
+var LRUCache = function(capacity) {
+    this.capacity = capacity;
+    this.map = new Map();
+};
+
+/** 
+ * @param {number} key
+ * @return {number}
+ */
+LRUCache.prototype.get = function(key) {
+    if (this.map.has(key)) {
+        let val = this.map.get(key);
+        this.map.delete(key);
+        this.map.set(key, val);
+        return val;
+    }
+    return -1;
+};`
+        }
+      }
     ]
   }
 ];
