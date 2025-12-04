@@ -5,7 +5,8 @@ import {
   Layout, Hash, Save, Edit3, ChevronRight,
   Github, Moon, Sun, Eye, List, Tags as TagsIcon, 
   PanelLeftClose, ArrowDownUp, ChevronsUp, ArrowUp, ArrowDown, Filter,
-  Trophy, Target, Activity, Calendar, CheckCircle2, Circle, ChevronDown
+  Trophy, Target, Activity, Calendar, CheckCircle2, Circle, ChevronDown,
+  FileJson, RotateCcw, X
 } from 'lucide-react';
 import { Problem, Difficulty, ActivityLog, MasteryStatus } from './types';
 import { BlockRenderer } from './components/BlockRenderer';
@@ -260,6 +261,24 @@ const INITIAL_LOGS: ActivityLog[] = [
   { id: '3', problemId: '146', problemTitle: '146. LRU 缓存 (LRU Cache)', type: 'create', timestamp: Date.now() - 86400000 * 1 },
 ];
 
+const JSON_TEMPLATE = `{
+  "title": "题目名称",
+  "link": "https://leetcode.cn/problems/...",
+  "difficulty": "Medium",
+  "tags": ["标签A", "标签B"],
+  "blocks": [
+    {
+      "type": "text",
+      "content": "这里是题目描述..."
+    },
+    {
+      "type": "code",
+      "language": "java",
+      "content": "class Solution {\\n    // 代码...\\n}"
+    }
+  ]
+}`;
+
 type Theme = 'light' | 'dark' | 'eyecare';
 type SortOption = 'id' | 'date' | 'difficulty';
 
@@ -349,8 +368,6 @@ const PersonalDashboard = ({
       currentStreak++;
       checkDate.setDate(checkDate.getDate() - 1);
     } else {
-      // If today has no activity, maybe yesterday? 
-      // For simplicity, just strict consecutive days ending today/yesterday.
       if (currentStreak === 0 && checkDate.toDateString() === new Date().toDateString()) {
          checkDate.setDate(checkDate.getDate() - 1);
          continue;
@@ -379,7 +396,7 @@ const PersonalDashboard = ({
   const monthLabels = [];
   for (let i = 0; i < weeks.length; i++) {
     const firstDay = weeks[i][0];
-    if (firstDay.getDate() <= 7) { // Simplified month label placement
+    if (firstDay.getDate() <= 7) { 
        monthLabels.push({ label: firstDay.getMonth() + 1 + '月', index: i });
     }
   }
@@ -486,15 +503,15 @@ const PersonalDashboard = ({
           </div>
 
           <div className="flex overflow-x-auto pb-2 custom-scrollbar">
-             <div className="flex flex-col gap-[2px]">
+             <div className="flex flex-col gap-[3px]">
                {/* Grid */}
-               <div className="flex gap-[2px]">
+               <div className="flex gap-[3px]">
                  {weeks.map((week, wIndex) => (
-                   <div key={wIndex} className="flex flex-col gap-[2px]">
+                   <div key={wIndex} className="flex flex-col gap-[3px]">
                      {week.map((day, dIndex) => (
                        <div 
                          key={dIndex}
-                         className={`w-[10px] h-[10px] rounded-[2px] ${getCellColor(activityMap.get(day.toDateString()) || 0)}`}
+                         className={`w-[12px] h-[12px] rounded-[3px] ${getCellColor(activityMap.get(day.toDateString()) || 0)}`}
                          title={`${day.toLocaleDateString()} : ${activityMap.get(day.toDateString()) || 0} 次提交`}
                        ></div>
                      ))}
@@ -508,7 +525,7 @@ const PersonalDashboard = ({
                     <span 
                       key={i} 
                       className="absolute top-0"
-                      style={{ left: `${m.index * 12}px` }} // 10px width + 2px gap = 12px pitch
+                      style={{ left: `${m.index * 15}px` }} // 12px width + 3px gap = 15px pitch
                     >
                       {m.label}
                     </span>
@@ -519,11 +536,11 @@ const PersonalDashboard = ({
           
           <div className="flex items-center justify-end gap-1 mt-2 text-xs text-gray-400">
              <span>Less</span>
-             <div className={`w-[10px] h-[10px] rounded-[2px] ${theme === 'dark' ? 'bg-[#161b22]' : 'bg-[#ebedf0]'}`}></div>
-             <div className={`w-[10px] h-[10px] rounded-[2px] ${theme === 'dark' ? 'bg-[#0e4429]' : 'bg-[#9be9a8]'}`}></div>
-             <div className={`w-[10px] h-[10px] rounded-[2px] ${theme === 'dark' ? 'bg-[#006d32]' : 'bg-[#40c463]'}`}></div>
-             <div className={`w-[10px] h-[10px] rounded-[2px] ${theme === 'dark' ? 'bg-[#26a641]' : 'bg-[#30a14e]'}`}></div>
-             <div className={`w-[10px] h-[10px] rounded-[2px] ${theme === 'dark' ? 'bg-[#39d353]' : 'bg-[#216e39]'}`}></div>
+             <div className={`w-[12px] h-[12px] rounded-[3px] ${theme === 'dark' ? 'bg-[#161b22]' : 'bg-[#ebedf0]'}`}></div>
+             <div className={`w-[12px] h-[12px] rounded-[3px] ${theme === 'dark' ? 'bg-[#0e4429]' : 'bg-[#9be9a8]'}`}></div>
+             <div className={`w-[12px] h-[12px] rounded-[3px] ${theme === 'dark' ? 'bg-[#006d32]' : 'bg-[#40c463]'}`}></div>
+             <div className={`w-[12px] h-[12px] rounded-[3px] ${theme === 'dark' ? 'bg-[#26a641]' : 'bg-[#30a14e]'}`}></div>
+             <div className={`w-[12px] h-[12px] rounded-[3px] ${theme === 'dark' ? 'bg-[#39d353]' : 'bg-[#216e39]'}`}></div>
              <span>More</span>
           </div>
       </div>
@@ -612,6 +629,9 @@ export default function App() {
   const [sortOption, setSortOption] = useState<SortOption>('id');
   const [isReversed, setIsReversed] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  
+  // Import JSON State - PRE-FILLED with Template
+  const [importJson, setImportJson] = useState(JSON_TEMPLATE);
   
   // Theme State
   const [theme, setTheme] = useState<Theme>(() => {
@@ -760,9 +780,41 @@ export default function App() {
 
   const cancelEdit = () => {
     setIsEditing(false);
+    setImportJson(JSON_TEMPLATE); // Reset to template on cancel
     if (selectedProblem?.title === '新题目' && selectedProblem.link === '') {
       setProblems(prev => prev.filter(p => p.id !== selectedProblem.id));
       setSelectedId(problems[0]?.id || '');
+    }
+  };
+  
+  const handleJsonImport = () => {
+    try {
+      if (!importJson.trim()) return;
+      const data = JSON.parse(importJson);
+      
+      const newBlocks = Array.isArray(data.blocks) 
+        ? data.blocks.map((b: any, idx: number) => ({
+            id: `${Date.now()}-${idx}`,
+            type: b.type || 'text',
+            content: b.content || '',
+            language: b.language || (b.type === 'code' ? 'java' : undefined),
+            codeSnippets: b.codeSnippets,
+            caption: b.caption
+          })) 
+        : editForm.blocks;
+
+      setEditForm(prev => ({
+        ...prev,
+        title: data.title || prev.title,
+        link: data.link || prev.link,
+        difficulty: data.difficulty || prev.difficulty,
+        tags: Array.isArray(data.tags) ? data.tags : prev.tags,
+        blocks: newBlocks
+      }));
+      
+      document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) {
+      alert("JSON 解析失败，请检查格式是否正确。");
     }
   };
 
@@ -879,6 +931,7 @@ export default function App() {
       tagBg: 'bg-gray-100',
       divider: 'border-gray-100',
       scrollbarThumb: 'bg-gray-300',
+      inputBorder: 'border-gray-200',
     },
     dark: {
       bg: 'bg-gray-900',
@@ -897,6 +950,7 @@ export default function App() {
       tagBg: 'bg-gray-800',
       divider: 'border-gray-800',
       scrollbarThumb: 'bg-gray-600',
+      inputBorder: 'border-gray-700',
     },
     eyecare: {
       bg: 'bg-[#C7EDCC]',
@@ -915,6 +969,7 @@ export default function App() {
       tagBg: 'bg-[#baddbf]',
       divider: 'border-[#a5c6aa]',
       scrollbarThumb: 'bg-[#8cb090]',
+      inputBorder: 'border-[#a5c6aa]',
     }
   };
 
@@ -978,23 +1033,18 @@ export default function App() {
   });
   const sortedTags = Array.from(problemsByTag.keys()).sort((a, b) => a.localeCompare(b, 'zh-CN'));
 
-  // Calculate Tag Statistics
+  // Calculate Tag Statistics (NOT USED IN UI ANYMORE, but logic kept for structure)
   const tagStats = React.useMemo(() => {
     const stats: { name: string; count: number }[] = [];
-    
-    // Recalculate full tag map from ALL problems (not filtered) to show global stats
     const allProblemsByTag = new Map<string, number>();
     problems.forEach(p => {
       p.tags.forEach(t => {
         allProblemsByTag.set(t, (allProblemsByTag.get(t) || 0) + 1);
       });
     });
-
     allProblemsByTag.forEach((count, name) => {
       stats.push({ name, count });
     });
-
-    // Sort by count (desc), then name
     return stats.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
   }, [problems]);
 
@@ -1411,6 +1461,47 @@ export default function App() {
                             theme={theme}
                           />
                         </div>
+
+                         {/* Quick Import (JSON) */}
+                         <div className={`mt-12 pt-8 border-t ${t.divider}`}>
+                            <div className="flex items-center gap-2 mb-4">
+                               <FileJson size={20} className={t.textMuted} />
+                               <h3 className={`text-sm font-bold ${t.text} uppercase tracking-wider`}>快速导入 (JSON)</h3>
+                            </div>
+                            <div className={`p-4 rounded-lg border ${theme === 'dark' ? 'bg-black/20 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+                               <p className={`text-xs mb-3 ${t.textMuted}`}>
+                                  将标准 JSON 格式粘贴到下方，可以快速修改或填充题目内容。
+                               </p>
+                               <textarea
+                                  value={importJson}
+                                  onChange={(e) => setImportJson(e.target.value)}
+                                  className={`w-full h-48 font-mono text-xs p-3 rounded border focus:ring-1 focus:ring-indigo-500 focus:outline-none resize-none mb-3 ${t.inputBg} ${t.inputBorder} ${t.text}`}
+                               />
+                               <div className="flex justify-end gap-2">
+                                  <button 
+                                    onClick={() => setImportJson(JSON_TEMPLATE)}
+                                    className={`flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded transition-colors border ${t.headerBorder} ${t.textMuted} hover:${t.text}`}
+                                    title="恢复默认模板"
+                                  >
+                                    <RotateCcw size={14} /> 重置
+                                  </button>
+                                  <button 
+                                    onClick={() => setImportJson('')}
+                                    className={`flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded transition-colors border ${t.headerBorder} ${t.textMuted} hover:${t.text}`}
+                                    title="清空内容"
+                                  >
+                                    <X size={14} /> 清空
+                                  </button>
+                                  <button 
+                                    onClick={handleJsonImport}
+                                    className="px-4 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors shadow-sm"
+                                  >
+                                    确认导入
+                                  </button>
+                               </div>
+                            </div>
+                         </div>
+
                       </div>
                     ) : (
                       // --- READ MODE ---
@@ -1482,45 +1573,26 @@ export default function App() {
             </>
           )}
         </main>
-
-        {/* --- Right Sidebar (Tag Statistics) --- */}
-        {view === 'problem' && (
-          <aside className={`w-72 border-l ${t.sidebarBorder} ${t.bg} hidden xl:block overflow-y-auto p-6 transition-colors duration-300`}>
-            <div className="sticky top-6">
-              <h3 className={`text-xs font-bold ${t.textMuted} uppercase tracking-wider mb-4`}>题目统计</h3>
-              {tagStats.length > 0 ? (
-                <div className={`border rounded-lg overflow-hidden ${t.cardBorder}`}>
-                  <table className={`w-full text-sm ${t.text}`}>
-                    <thead className={`${t.headerBg} border-b ${t.divider}`}>
-                      <tr>
-                        <th className={`px-4 py-2 text-left font-medium ${t.textMuted}`}>标签</th>
-                        <th className={`px-4 py-2 text-right font-medium ${t.textMuted}`}>数量</th>
-                      </tr>
-                    </thead>
-                    <tbody className={`${t.bg} divide-y ${t.divider}`}>
-                      {tagStats.map((stat, index) => (
-                        <tr 
-                          key={stat.name} 
-                          className={`hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer`}
-                          onClick={() => handleTagClick(stat.name)}
-                        >
-                          <td className="px-4 py-2">
-                            <span className="flex items-center gap-2">
-                              <Hash size={12} className={t.textMuted} />
-                              {stat.name}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2 text-right font-mono text-xs opacity-70">
-                            {stat.count}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+        
+        {/* --- Right Sidebar (Table of Contents) --- */}
+        {view === 'problem' && !isEditing && selectedProblem && tableOfContents.length > 0 && (
+          <aside className={`w-64 hidden xl:block flex-shrink-0 border-l ${t.sidebarBorder} p-6 overflow-y-auto ${t.textMuted} text-sm custom-scrollbar`}>
+            <h4 className={`font-bold mb-4 ${t.text}`}>此页内容</h4>
+            <div className={`space-y-1 relative border-l-2 ${theme === 'dark' ? 'border-gray-800' : 'border-gray-100'}`}>
+              {tableOfContents.map(item => (
+                <div 
+                  key={item.id}
+                  onClick={() => scrollToBlock(item.id)}
+                  className={`
+                    cursor-pointer py-1 pl-4 transition-all duration-200 border-l-2 -ml-[2px]
+                    ${activeBlockId === item.id 
+                      ? 'border-indigo-500 font-medium text-indigo-600' 
+                      : 'border-transparent hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600'}
+                  `}
+                >
+                  {item.label}
                 </div>
-              ) : (
-                <div className={`text-sm ${t.textMuted} italic`}>暂无标签数据</div>
-              )}
+              ))}
             </div>
           </aside>
         )}
