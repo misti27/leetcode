@@ -714,11 +714,16 @@ export default function App() {
   const handleTagClick = (tag: string) => {
     setSidebarMode('tags');
     setSidebarOpen(true);
-    setExpandedTags(prev => {
-      const newSet = new Set(prev);
-      newSet.add(tag);
-      return newSet;
-    });
+    // Exclusive expansion: clear others, set this one
+    setExpandedTags(new Set([tag]));
+    
+    // Scroll to the tag element in sidebar after render
+    setTimeout(() => {
+      const element = document.getElementById(`sidebar-tag-${tag}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
   };
 
   const handleCreateNew = () => {
@@ -1265,7 +1270,7 @@ export default function App() {
                   const tagProblems = problemsByTag.get(tag) || [];
                   const isExpanded = expandedTags.has(tag);
                   return (
-                    <div key={tag} className={`border-b ${t.divider} last:border-0`}>
+                    <div key={tag} id={`sidebar-tag-${tag}`} className={`border-b ${t.divider} last:border-0`}>
                       <div 
                         onClick={() => toggleTag(tag)}
                         className={`flex items-center justify-between px-4 py-3 hover:bg-black/5 cursor-pointer text-sm font-medium select-none ${t.text}`}
