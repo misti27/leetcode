@@ -19,8 +19,7 @@ const getRainbowColor = (depth: number, theme: 'light' | 'dark' | 'eyecare') => 
   const colors = {
     // Dark Mode: Gold, Hot Pink, Cyan (Bright Neon)
     dark: ['#ffd700', '#ff79c6', '#8be9fd'], 
-    // Light/Eyecare: Gold(Darker for contrast), Blue, Pink
-    // Using #d97706 (amber-600) for gold to ensure visibility on white background
+    // Light/Eyecare: Gold(Amber-600), Blue, Pink - Matches requested screenshot style
     light: ['#d97706', '#2563eb', '#db2777'], 
     eyecare: ['#d97706', '#2563eb', '#db2777'], 
   };
@@ -165,7 +164,7 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, theme = 'li
   switch (block.type) {
     case 'text':
       return (
-        <div id={block.id} className={`mb-6 leading-relaxed text-base block-markdown ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+        <div id={block.id} className={`scroll-mt-20 mb-6 leading-relaxed text-base block-markdown ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
            <ReactMarkdown
             remarkPlugins={[remarkMath, remarkGfm, remarkBreaks]}
             rehypePlugins={[rehypeKatex]}
@@ -180,7 +179,12 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, theme = 'li
               ol: ({node, ...props}) => <ol className={`list-decimal pl-5 mb-4 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`} {...props} />,
               li: ({node, ...props}) => <li className="mb-1" {...props} />,
               code: ({node, inline, className, children, ...props}: any) => {
-                return inline ? (
+                // Heuristic: If inline is undefined (missing in v9), check for newlines or language class.
+                // If it has a language class, it's likely a block. If it has newlines, it's a block.
+                const hasLang = /language-(\w+)/.exec(className || '');
+                const isInline = inline ?? (!hasLang && !String(children).includes('\n'));
+
+                return isInline ? (
                   <code className={`px-1.5 py-0.5 rounded text-sm font-mono ${theme === 'dark' ? 'bg-gray-800 text-pink-400' : 'bg-gray-100 text-pink-600'}`} {...props}>
                     {children}
                   </code>
@@ -221,7 +225,7 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, theme = 'li
       const lines = displayContent.split('\n');
 
       return (
-        <div id={block.id} className="mb-8 mt-4 group">
+        <div id={block.id} className="scroll-mt-20 mb-8 mt-4 group">
           <div className={`rounded-lg overflow-hidden border ${styles.wrapper}`}>
             
             {/* Header / Tabs */}
@@ -299,7 +303,7 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, theme = 'li
 
     case 'image':
       return (
-        <div id={block.id} className="mb-6">
+        <div id={block.id} className="scroll-mt-20 mb-6">
           <div className={`rounded-lg overflow-hidden border shadow-sm ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
              <img 
                src={block.content || 'https://picsum.photos/800/400'} 
@@ -318,7 +322,7 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, theme = 'li
 
     case 'callout':
       return (
-        <div id={block.id} className={`mb-6 p-4 border-l-4 rounded-r-lg shadow-sm ${theme === 'dark' ? 'border-amber-600 bg-amber-900/20 text-gray-300' : 'border-amber-400 bg-amber-50 text-gray-700'}`}>
+        <div id={block.id} className={`scroll-mt-20 mb-6 p-4 border-l-4 rounded-r-lg shadow-sm ${theme === 'dark' ? 'border-amber-600 bg-amber-900/20 text-gray-300' : 'border-amber-400 bg-amber-50 text-gray-700'}`}>
           <div className={`flex items-center gap-2 font-bold mb-1 ${theme === 'dark' ? 'text-amber-500' : 'text-amber-800'}`}>
              <Lightbulb size={16} />
              <span>注意</span>

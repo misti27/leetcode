@@ -1,10 +1,10 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Menu, Search, BookOpen, Star, Plus, ExternalLink, 
   Layout, Hash, Save, Edit3, ChevronRight,
   Github, Moon, Sun, Eye, List, Tags as TagsIcon, 
-  PanelLeftClose, ArrowDownUp, ChevronsUp
+  PanelLeftClose, ArrowDownUp, ChevronsUp, ArrowUp, ArrowDown, Filter
 } from 'lucide-react';
 import { Problem, Difficulty } from './types';
 import { BlockRenderer } from './components/BlockRenderer';
@@ -252,7 +252,7 @@ LRUCache.prototype.get = function(key) {
 ];
 
 type Theme = 'light' | 'dark' | 'eyecare';
-type SortOption = 'id' | 'date' | 'difficulty' | 'favorite';
+type SortOption = 'id' | 'date' | 'difficulty';
 
 export default function App() {
   const [problems, setProblems] = useState<Problem[]>(() => {
@@ -266,7 +266,12 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarMode, setSidebarMode] = useState<'list' | 'tags'>('list');
   const [expandedTags, setExpandedTags] = useState<Set<string>>(new Set());
+  const [activeBlockId, setActiveBlockId] = useState<string>('');
+  
+  // Sorting & Filtering
   const [sortOption, setSortOption] = useState<SortOption>('id');
+  const [isReversed, setIsReversed] = useState(false);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   
   // Theme State
   const [theme, setTheme] = useState<Theme>(() => {
@@ -282,13 +287,43 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('leetnotes-theme', theme);
-    // Apply dark class to body for global scrollbars etc if needed
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
+
+  // Intersection Observer for Table of Contents
+  useEffect(() => {
+    if (isEditing) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveBlockId(entry.target.id);
+          }
+        });
+      },
+      {
+        rootMargin: '-10% 0px -60% 0px', // Trigger when element is near top of viewport
+        threshold: 0
+      }
+    );
+
+    const selectedProblem = problems.find(p => p.id === selectedId);
+    if (selectedProblem) {
+      selectedProblem.blocks.forEach((block) => {
+        const el = document.getElementById(block.id);
+        if (el) observer.observe(el);
+      });
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [selectedId, problems, isEditing]);
 
   const selectedProblem = problems.find(p => p.id === selectedId);
 
@@ -300,7 +335,10 @@ export default function App() {
     }
     setSelectedId(id);
     setIsEditing(false);
-    // On mobile, auto-close sidebar after selection
+    // Reset scroll to top
+    const mainContainer = document.querySelector('main');
+    if (mainContainer) mainContainer.scrollTop = 0;
+    
     if (window.innerWidth < 1024) {
       setSidebarOpen(false);
     }
@@ -324,7 +362,7 @@ export default function App() {
       link: '',
       difficulty: 'Easy',
       tags: [],
-      blocks: [{ id: '0', type: 'text', content: '在这里输入内容...' }],
+      blocks: [{ id: Date.now().toString(), type: 'text', content: '在这里输入内容...' }],
       lastEdited: Date.now(),
       isFavorite: false,
     };
@@ -388,6 +426,7 @@ export default function App() {
   };
 
   const scrollToBlock = (id: string) => {
+    setActiveBlockId(id);
     const element = document.getElementById(id);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -397,7 +436,6 @@ export default function App() {
   // --- Render Helpers ---
 
   const getDifficultyColor = (diff: Difficulty) => {
-    // These colors need to adapt to theme slightly or stay vibrant
     if (theme === 'dark') {
       switch (diff) {
         case 'Easy': return 'bg-green-900/30 text-green-400 border-green-800';
@@ -469,10 +507,16 @@ export default function App() {
 
   const t = themeClasses[theme];
 
-  const filteredProblems = problems.filter(p => 
+  // 1. First, filter by search query
+  let filteredList = problems.filter(p => 
     p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()))
   );
+
+  // 2. If "Favorite Only" is toggled
+  if (showFavoritesOnly) {
+    filteredList = filteredList.filter(p => p.isFavorite);
+  }
 
   const getDifficultyValue = (d: Difficulty) => {
     switch (d) {
@@ -483,19 +527,30 @@ export default function App() {
     }
   };
 
-  const sortedProblems = [...filteredProblems].sort((a, b) => {
+  const compareIds = (idA: string, idB: string) => {
+    return idA.localeCompare(idB, undefined, { numeric: true });
+  };
+
+  const sortedProblems = [...filteredList].sort((a, b) => {
+    let result = 0;
     switch (sortOption) {
-      case 'date': return b.lastEdited - a.lastEdited;
-      case 'difficulty': return getDifficultyValue(a.difficulty) - getDifficultyValue(b.difficulty);
-      case 'favorite': return (a.isFavorite === b.isFavorite) ? 0 : (b.isFavorite ? 1 : -1);
+      case 'date': 
+        result = b.lastEdited - a.lastEdited; // Default: Newest first
+        break;
+      case 'difficulty': 
+        const diff = getDifficultyValue(a.difficulty) - getDifficultyValue(b.difficulty); // Default: Easy to Hard
+        result = diff !== 0 ? diff : compareIds(a.id, b.id);
+        break;
       case 'id': 
       default: 
-        return parseInt(a.id) - parseInt(b.id);
+        result = compareIds(a.id, b.id); // Default: 1 -> 99
+        break;
     }
+    // If reversed, flip the result
+    return isReversed ? -result : result;
   });
 
   const problemsByTag = new Map<string, Problem[]>();
-  // Use sorted problems for tags as well to maintain consistency, or stick to filtered
   sortedProblems.forEach(p => {
     if (p.tags.length === 0) {
       const untaggedKey = '未分类';
@@ -509,6 +564,30 @@ export default function App() {
     }
   });
   const sortedTags = Array.from(problemsByTag.keys()).sort((a, b) => a.localeCompare(b, 'zh-CN'));
+
+  // Generate Table of Contents
+  const tableOfContents = React.useMemo(() => {
+    if (!selectedProblem) return [];
+    
+    const items = [];
+    // Always add a "Description" item linked to the first block if available
+    if (selectedProblem.blocks.length > 0) {
+        items.push({ id: selectedProblem.blocks[0].id, label: '题目描述' });
+    }
+
+    selectedProblem.blocks.forEach((block, index) => {
+      // Skip the first block if it was used for "Description" and it's just text
+      if (index === 0) return;
+
+      if (block.type === 'text' && block.content.startsWith('#')) {
+        const heading = block.content.split('\n')[0].replace(/#+\s/, '');
+        items.push({ id: block.id, label: heading });
+      } else if (block.type === 'code') {
+        items.push({ id: block.id, label: `解法代码 (${block.language})` });
+      }
+    });
+    return items;
+  }, [selectedProblem]);
 
 
   return (
@@ -623,20 +702,38 @@ export default function App() {
               <div className="p-2 space-y-1">
                 {/* Sort Bar */}
                 <div className={`flex items-center justify-between px-2 py-2 mb-2 text-xs ${t.textMuted} border-b ${t.divider}`}>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 flex-1">
                     <ArrowDownUp size={12} />
-                    <span>排序</span>
+                    <select 
+                      value={sortOption} 
+                      onChange={(e) => setSortOption(e.target.value as any)}
+                      className={`bg-transparent border-none outline-none cursor-pointer font-medium hover:${t.text} w-full`}
+                    >
+                      <option value="id">题号</option>
+                      <option value="date">时间</option>
+                      <option value="difficulty">难度</option>
+                    </select>
                   </div>
-                  <select 
-                    value={sortOption} 
-                    onChange={(e) => setSortOption(e.target.value as any)}
-                    className={`bg-transparent border-none outline-none cursor-pointer font-medium hover:${t.text} text-right`}
-                  >
-                    <option value="id">题号</option>
-                    <option value="date">时间</option>
-                    <option value="difficulty">难度</option>
-                    <option value="favorite">收藏</option>
-                  </select>
+                  
+                  <div className="flex items-center gap-1 border-l pl-2 ml-1">
+                    {/* Reverse Sort Toggle */}
+                    <button 
+                      onClick={() => setIsReversed(!isReversed)}
+                      className={`p-1 rounded hover:${t.text} transition-colors ${isReversed ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30' : ''}`}
+                      title={isReversed ? "当前: 倒序" : "当前: 正序"}
+                    >
+                       {isReversed ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+                    </button>
+                    
+                    {/* Favorites Filter Toggle */}
+                    <button 
+                      onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                      className={`p-1 rounded hover:${t.text} transition-colors ${showFavoritesOnly ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/30' : ''}`}
+                      title={showFavoritesOnly ? "显示全部" : "只看收藏"}
+                    >
+                      <Star size={14} className={showFavoritesOnly ? "fill-current" : ""} />
+                    </button>
+                  </div>
                 </div>
 
                 {sortedProblems.map(problem => (
@@ -918,42 +1015,21 @@ export default function App() {
           <div className="sticky top-6">
             <h3 className={`text-xs font-bold ${t.textMuted} uppercase tracking-wider mb-4`}>此页内容</h3>
             <ul className={`space-y-3 text-sm border-l ${t.divider}`}>
-               {selectedProblem && !isEditing && (
-                 <>
-                   <li 
-                    onClick={() => scrollToBlock(selectedProblem.blocks[0]?.id)}
-                    className="pl-4 border-l-2 border-indigo-500 text-indigo-600 font-medium cursor-pointer"
-                   >
-                    简介
+               {selectedProblem && !isEditing && tableOfContents.map((item) => (
+                  <li 
+                    key={item.id} 
+                    onClick={() => scrollToBlock(item.id)}
+                    className={`pl-4 border-l-2 transition-colors cursor-pointer truncate ${
+                      activeBlockId === item.id
+                        ? 'border-indigo-500 text-indigo-600 font-medium'
+                        : `border-transparent ${t.textMuted} ${theme === 'dark' ? 'hover:text-gray-300' : 'hover:text-gray-800'}`
+                    }`}
+                  >
+                     {item.label}
                   </li>
-                   {selectedProblem.blocks.map((block, idx) => {
-                     // Generate pseudo TOC items from content
-                     if (block.type === 'text' && block.content.startsWith('#')) {
-                        const heading = block.content.split('\n')[0].replace(/#+\s/, '');
-                        return (
-                          <li 
-                            key={block.id} 
-                            onClick={() => scrollToBlock(block.id)}
-                            className={`pl-4 border-l-2 border-transparent ${theme === 'dark' ? 'hover:border-gray-500 hover:text-gray-300' : 'hover:border-gray-300 hover:text-gray-800'} ${t.textMuted} transition-colors cursor-pointer truncate`}
-                          >
-                             {heading}
-                          </li>
-                        )
-                     }
-                     if (block.type === 'code') {
-                       return (
-                          <li 
-                            key={block.id} 
-                            onClick={() => scrollToBlock(block.id)}
-                            className={`pl-4 border-l-2 border-transparent ${theme === 'dark' ? 'hover:border-gray-500 hover:text-gray-300' : 'hover:border-gray-300 hover:text-gray-800'} ${t.textMuted} transition-colors cursor-pointer truncate`}
-                          >
-                             解法代码 ({block.language})
-                          </li>
-                       )
-                     }
-                     return null;
-                   })}
-                 </>
+               ))}
+               {selectedProblem && !isEditing && tableOfContents.length === 0 && (
+                   <li className={`pl-4 ${t.textMuted} italic text-xs`}>暂无目录</li>
                )}
             </ul>
           </div>
