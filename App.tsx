@@ -844,20 +844,50 @@ export default function App() {
   const saveChanges = () => {
     if (!editForm.id) return;
     
-    // Update problem
-    setProblems(prev => prev.map(p => 
-      p.id === editForm.id 
-        ? { ...p, ...editForm, lastEdited: Date.now() } as Problem 
-        : p
-    ));
-    
-    // Update log title if changed
-    if (editForm.title && selectedProblem && editForm.title !== selectedProblem.title) {
-       setActivityLogs(prev => prev.map(log => 
-         log.problemId === editForm.id ? { ...log, problemTitle: editForm.title! } : log
-       ));
+    // --- ID Extraction Logic ---
+    let finalId = editForm.id;
+    // Attempt to extract numeric ID from title (e.g., "15. 3Sum" -> "15")
+    const match = editForm.title?.trim().match(/^(\d+)[.、\s]/);
+    if (match) {
+        const potentialId = match[1];
+        // Check for duplicate ID (exclude current problem)
+        const conflict = problems.find(p => p.id === potentialId && p.id !== editForm.id);
+        if (conflict) {
+            alert(`保存失败：题号 ${potentialId} 已被题目 "${conflict.title}" 占用。请检查标题或使用不同的题号。`);
+            return;
+        }
+        finalId = potentialId;
     }
 
+    // Prepare updated problem
+    const updatedProblem: Problem = { 
+        ...editForm, 
+        id: finalId, // Use the extracted/verified ID
+        lastEdited: Date.now() 
+    } as Problem;
+    
+    // Update Problems State
+    setProblems(prev => prev.map(p => 
+      p.id === editForm.id ? updatedProblem : p
+    ));
+    
+    // Update Logs if ID or Title changed
+    // Use finalId here to ensure logs link to the new ID
+    if (finalId !== editForm.id || (editForm.title && selectedProblem && editForm.title !== selectedProblem.title)) {
+       setActivityLogs(prev => prev.map(log => {
+         if (log.problemId === editForm.id) {
+             return { 
+                 ...log, 
+                 problemId: finalId,
+                 problemTitle: editForm.title || log.problemTitle 
+             };
+         }
+         return log;
+       }));
+    }
+
+    // Update selection to potentially new ID
+    setSelectedId(finalId);
     setIsEditing(false);
   };
 
@@ -1113,14 +1143,8 @@ export default function App() {
       case 'id': 
       default: 
         {
-           const numA = getProblemNumber(a);
-           const numB = getProblemNumber(b);
-           if (numA !== numB) {
-             result = numA - numB;
-           } else {
-             // Fallback to internal ID (creation time usually)
-             result = a.id.localeCompare(b.id);
-           }
+           // Use standard numeric ID sorting if possible, falling back to string ID
+           result = compareIds(a.id, b.id);
         }
         break;
     }
