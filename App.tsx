@@ -6,11 +6,20 @@ import {
   Github, Moon, Sun, Eye, List, Tags as TagsIcon, 
   PanelLeftClose, ArrowDownUp, ChevronsUp, ArrowUp, ArrowDown, Filter,
   Trophy, Target, Activity, Calendar, CheckCircle2, Circle, ChevronDown,
-  FileJson, RotateCcw, X
+  FileJson, RotateCcw, X, Clock, Settings, Download, Upload, AlertTriangle
 } from 'lucide-react';
 import { Problem, Difficulty, ActivityLog, MasteryStatus } from './types';
 import { BlockRenderer } from './components/BlockRenderer';
 import { BlockEditor } from './components/BlockEditor';
+
+// --- Shared Timestamps for Consistency ---
+const NOW = Date.now();
+const ONE_DAY = 86400000;
+// Problem 46 dates
+const TIME_P46_CREATE = NOW - ONE_DAY * 5;
+const TIME_P46_MASTER = NOW - ONE_DAY * 2;
+// Problem 146 dates
+const TIME_P146_CREATE = NOW - ONE_DAY * 1;
 
 // --- Mock Initial Data (Chinese) ---
 const INITIAL_PROBLEMS: Problem[] = [
@@ -21,7 +30,9 @@ const INITIAL_PROBLEMS: Problem[] = [
     difficulty: 'Medium',
     tags: ['数组', '回溯'],
     isFavorite: true,
-    lastEdited: Date.now(),
+    lastEdited: NOW,
+    createdAt: TIME_P46_CREATE, 
+    masteredAt: TIME_P46_MASTER, 
     status: 'mastered',
     blocks: [
       { id: '101', type: 'text', content: '给定一个不含重复数字的数组 `nums` ，返回其 **所有可能的全排列** 。你可以 **按任意顺序** 返回答案。' },
@@ -198,7 +209,8 @@ var permute = function(nums) {
     difficulty: 'Medium',
     tags: ['设计', '哈希表', '链表', '双向链表'],
     isFavorite: false,
-    lastEdited: Date.now() - 100000,
+    lastEdited: NOW,
+    createdAt: TIME_P146_CREATE,
     status: 'learning',
     blocks: [
       { id: '201', type: 'text', content: '请你设计并实现一个满足  LRU (最近最少使用) 缓存 约束的数据结构。' },
@@ -256,9 +268,9 @@ LRUCache.prototype.get = function(key) {
 ];
 
 const INITIAL_LOGS: ActivityLog[] = [
-  { id: '1', problemId: '46', problemTitle: '46. 全排列 (Permutations)', type: 'create', timestamp: Date.now() - 86400000 * 5 },
-  { id: '2', problemId: '46', problemTitle: '46. 全排列 (Permutations)', type: 'master', timestamp: Date.now() - 86400000 * 2 },
-  { id: '3', problemId: '146', problemTitle: '146. LRU 缓存 (LRU Cache)', type: 'create', timestamp: Date.now() - 86400000 * 1 },
+  { id: '1', problemId: '46', problemTitle: '46. 全排列 (Permutations)', type: 'create', timestamp: TIME_P46_CREATE },
+  { id: '2', problemId: '46', problemTitle: '46. 全排列 (Permutations)', type: 'master', timestamp: TIME_P46_MASTER },
+  { id: '3', problemId: '146', problemTitle: '146. LRU 缓存 (LRU Cache)', type: 'create', timestamp: TIME_P146_CREATE },
 ];
 
 const JSON_TEMPLATE = `{
@@ -609,12 +621,14 @@ const PersonalDashboard = ({
 
 export default function App() {
   const [problems, setProblems] = useState<Problem[]>(() => {
-    const saved = localStorage.getItem('leetnotes-data');
+    // UPDATED KEY V2 to force fresh data load for sync fix
+    const saved = localStorage.getItem('leetnotes-data-v2');
     return saved ? JSON.parse(saved) : INITIAL_PROBLEMS;
   });
   
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() => {
-    const saved = localStorage.getItem('leetnotes-logs');
+    // UPDATED KEY V2 to force fresh data load for sync fix
+    const saved = localStorage.getItem('leetnotes-logs-v2');
     return saved ? JSON.parse(saved) : INITIAL_LOGS;
   });
 
@@ -635,6 +649,10 @@ export default function App() {
   // Import JSON State - PRE-FILLED with Template
   const [importJson, setImportJson] = useState(JSON_TEMPLATE);
   
+  // Settings Modal State
+  const [showSettings, setShowSettings] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   // Theme State
   const [theme, setTheme] = useState<Theme>(() => {
     return (localStorage.getItem('leetnotes-theme') as Theme) || 'light';
@@ -644,11 +662,11 @@ export default function App() {
   const [editForm, setEditForm] = useState<Partial<Problem>>({});
 
   useEffect(() => {
-    localStorage.setItem('leetnotes-data', JSON.stringify(problems));
+    localStorage.setItem('leetnotes-data-v2', JSON.stringify(problems));
   }, [problems]);
 
   useEffect(() => {
-    localStorage.setItem('leetnotes-logs', JSON.stringify(activityLogs));
+    localStorage.setItem('leetnotes-logs-v2', JSON.stringify(activityLogs));
   }, [activityLogs]);
 
   useEffect(() => {
@@ -695,6 +713,62 @@ export default function App() {
 
   // --- Handlers ---
 
+  const handleBackup = () => {
+    const backupData = {
+      version: 2,
+      timestamp: Date.now(),
+      problems,
+      activityLogs
+    };
+    
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `leetnotes-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleRestore = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        
+        // Basic validation
+        if (!data.problems || !Array.isArray(data.problems)) {
+          alert('无效的备份文件：找不到题目数据');
+          return;
+        }
+
+        if (confirm(`准备恢复 ${data.problems.length} 个题目笔记。当前的所有数据将被覆盖。确定继续吗？`)) {
+           setProblems(data.problems);
+           setActivityLogs(data.activityLogs || []);
+           // If current selected ID doesn't exist in new data, select first
+           if (!data.problems.some((p: Problem) => p.id === selectedId)) {
+             setSelectedId(data.problems[0]?.id || '');
+           }
+           alert('恢复成功！');
+           setShowSettings(false);
+        }
+      } catch (err) {
+        console.error(err);
+        alert('文件解析失败，请确保选择了正确的 JSON 备份文件。');
+      }
+    };
+    reader.readAsText(file);
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSelectProblem = (id: string) => {
     if (isEditing) {
       if (!confirm("你有未保存的更改。确定要放弃吗？")) return;
@@ -728,6 +802,7 @@ export default function App() {
 
   const handleCreateNew = () => {
     const newId = Date.now().toString();
+    const now = Date.now();
     const newProblem: Problem = {
       id: newId,
       title: '新题目',
@@ -735,7 +810,8 @@ export default function App() {
       difficulty: 'Easy',
       tags: [],
       blocks: [{ id: Date.now().toString(), type: 'text', content: '在这里输入内容...' }],
-      lastEdited: Date.now(),
+      lastEdited: now,
+      createdAt: now, // Ensure this matches log
       isFavorite: false,
       status: 'learning'
     };
@@ -746,7 +822,7 @@ export default function App() {
       problemId: newId,
       problemTitle: '新题目',
       type: 'create',
-      timestamp: Date.now()
+      timestamp: now
     };
 
     setProblems([newProblem, ...problems]);
@@ -844,7 +920,13 @@ export default function App() {
     if (!p) return;
     
     const newStatus: MasteryStatus = p.status === 'mastered' ? 'learning' : 'mastered';
-    setProblems(prev => prev.map(x => x.id === id ? { ...x, status: newStatus } : x));
+    const now = Date.now();
+    
+    setProblems(prev => prev.map(x => x.id === id ? { 
+      ...x, 
+      status: newStatus,
+      masteredAt: newStatus === 'mastered' ? now : x.masteredAt 
+    } : x));
 
     // Log activity only when mastering
     if (newStatus === 'mastered') {
@@ -853,7 +935,7 @@ export default function App() {
          problemId: id,
          problemTitle: p.title,
          type: 'master',
-         timestamp: Date.now()
+         timestamp: now
        };
        setActivityLogs([newLog, ...activityLogs]);
     }
@@ -1161,6 +1243,16 @@ export default function App() {
                Me
              </div>
           </button>
+
+          <div className={`w-[1px] h-6 mx-1 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-300'}`}></div>
+
+          <button 
+             onClick={() => setShowSettings(true)}
+             className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-black/5'}`} 
+             title="数据备份与恢复"
+           >
+             <Settings size={18} />
+          </button>
         </div>
       </header>
 
@@ -1265,10 +1357,19 @@ export default function App() {
                         </h3>
                         {problem.isFavorite && <Star size={12} className="text-yellow-400 fill-current mt-0.5 flex-shrink-0" />}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs ${t.textMuted} flex items-center gap-1`}>
-                          {new Date(problem.lastEdited).toLocaleDateString('zh-CN')}
-                        </span>
+                      
+                      {/* Dates Display */}
+                      <div className="flex flex-col gap-0.5 mt-1">
+                        <div className={`text-[10px] ${t.textMuted} flex items-center gap-1`}>
+                           <Plus size={10} className="opacity-70" /> 
+                           <span>新增: {new Date(problem.createdAt || problem.lastEdited).toLocaleDateString('zh-CN')}</span>
+                        </div>
+                        {problem.status === 'mastered' && problem.masteredAt && (
+                          <div className={`text-[10px] text-green-600 dark:text-green-400 flex items-center gap-1`}>
+                             <CheckCircle2 size={10} className="opacity-70" /> 
+                             <span>掌握: {new Date(problem.masteredAt).toLocaleDateString('zh-CN')}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1629,6 +1730,90 @@ export default function App() {
         )}
 
       </div>
+      
+      {/* --- Settings Modal --- */}
+      {showSettings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+           <div className={`w-full max-w-md rounded-2xl shadow-xl border overflow-hidden ${t.cardBg} ${t.cardBorder}`}>
+             <div className={`flex items-center justify-between px-6 py-4 border-b ${t.headerBorder}`}>
+               <div className="flex items-center gap-2">
+                 <Settings size={20} className={t.textMuted} />
+                 <h2 className={`font-bold text-lg ${t.text}`}>数据备份与恢复</h2>
+               </div>
+               <button onClick={() => setShowSettings(false)} className={`p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10 ${t.textMuted}`}>
+                 <X size={20} />
+               </button>
+             </div>
+             
+             <div className="p-6 space-y-8">
+               
+               {/* Backup Section */}
+               <div className="space-y-3">
+                 <div className="flex items-start gap-3">
+                   <div className={`p-2 rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400`}>
+                     <Download size={20} />
+                   </div>
+                   <div>
+                     <h3 className={`font-semibold ${t.text}`}>备份数据</h3>
+                     <p className={`text-sm ${t.textMuted} mt-1`}>
+                       将所有的题目笔记和学习记录导出为 JSON 文件保存到本地。
+                     </p>
+                   </div>
+                 </div>
+                 <button 
+                   onClick={handleBackup}
+                   className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium text-sm shadow-sm"
+                 >
+                   下载备份文件
+                 </button>
+               </div>
+               
+               <div className={`border-t ${t.divider}`}></div>
+               
+               {/* Restore Section */}
+               <div className="space-y-3">
+                 <div className="flex items-start gap-3">
+                   <div className={`p-2 rounded-lg bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400`}>
+                     <Upload size={20} />
+                   </div>
+                   <div>
+                     <h3 className={`font-semibold ${t.text}`}>恢复数据</h3>
+                     <p className={`text-sm ${t.textMuted} mt-1`}>
+                       从本地 JSON 文件恢复数据。
+                     </p>
+                     <div className="flex items-center gap-1.5 mt-2 text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/10 px-2 py-1 rounded">
+                       <AlertTriangle size={12} />
+                       <span>警告：这将覆盖当前的全部数据！</span>
+                     </div>
+                   </div>
+                 </div>
+                 <div className="relative">
+                   <input 
+                     type="file" 
+                     ref={fileInputRef}
+                     accept=".json"
+                     onChange={handleRestore}
+                     className="hidden"
+                   />
+                   <button 
+                     onClick={() => fileInputRef.current?.click()}
+                     className={`w-full flex items-center justify-center gap-2 py-2.5 border rounded-lg transition-colors font-medium text-sm hover:opacity-80 ${t.cardBg} ${t.text} ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'}`}
+                   >
+                     选择备份文件并恢复
+                   </button>
+                 </div>
+               </div>
+             </div>
+             
+             <div className={`px-6 py-4 bg-gray-50 dark:bg-black/20 border-t ${t.headerBorder} text-center`}>
+               <p className={`text-xs ${t.textMuted}`}>
+                 LeetNotes v2.0 &middot; {problems.length} 篇笔记 &middot; {activityLogs.length} 条记录
+               </p>
+             </div>
+           </div>
+        </div>
+      )}
+
     </div>
   );
 }

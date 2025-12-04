@@ -22,6 +22,8 @@ export interface Problem {
   tags: string[];
   blocks: ContentBlock[];
   lastEdited: number;
+  createdAt: number; // Timestamp when problem was added
+  masteredAt?: number; // Timestamp when problem was marked as mastered
   isFavorite: boolean;
   status: MasteryStatus;
 }
