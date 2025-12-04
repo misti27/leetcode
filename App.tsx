@@ -2,8 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Menu, Search, BookOpen, Star, Plus, ExternalLink, 
-  Layout, Hash, Tag, Save, Edit3, ChevronRight,
-  Github, Moon, Sun, Eye, List, Tags as TagsIcon, ChevronDown
+  Layout, Hash, Save, Edit3, ChevronRight,
+  Github, Moon, Sun, Eye, List, Tags as TagsIcon, 
+  PanelLeftClose, ArrowDownUp, ChevronsUp
 } from 'lucide-react';
 import { Problem, Difficulty } from './types';
 import { BlockRenderer } from './components/BlockRenderer';
@@ -251,6 +252,7 @@ LRUCache.prototype.get = function(key) {
 ];
 
 type Theme = 'light' | 'dark' | 'eyecare';
+type SortOption = 'id' | 'date' | 'difficulty' | 'favorite';
 
 export default function App() {
   const [problems, setProblems] = useState<Problem[]>(() => {
@@ -264,6 +266,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarMode, setSidebarMode] = useState<'list' | 'tags'>('list');
   const [expandedTags, setExpandedTags] = useState<Set<string>>(new Set());
+  const [sortOption, setSortOption] = useState<SortOption>('id');
   
   // Theme State
   const [theme, setTheme] = useState<Theme>(() => {
@@ -297,6 +300,20 @@ export default function App() {
     }
     setSelectedId(id);
     setIsEditing(false);
+    // On mobile, auto-close sidebar after selection
+    if (window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
+  };
+
+  const handleTagClick = (tag: string) => {
+    setSidebarMode('tags');
+    setSidebarOpen(true);
+    setExpandedTags(prev => {
+      const newSet = new Set(prev);
+      newSet.add(tag);
+      return newSet;
+    });
   };
 
   const handleCreateNew = () => {
@@ -316,6 +333,7 @@ export default function App() {
     setEditForm(newProblem);
     setIsEditing(true);
     setSidebarMode('list');
+    setSidebarOpen(true);
   };
 
   const startEditing = () => {
@@ -456,8 +474,29 @@ export default function App() {
     p.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  const getDifficultyValue = (d: Difficulty) => {
+    switch (d) {
+      case 'Easy': return 1;
+      case 'Medium': return 2;
+      case 'Hard': return 3;
+      default: return 0;
+    }
+  };
+
+  const sortedProblems = [...filteredProblems].sort((a, b) => {
+    switch (sortOption) {
+      case 'date': return b.lastEdited - a.lastEdited;
+      case 'difficulty': return getDifficultyValue(a.difficulty) - getDifficultyValue(b.difficulty);
+      case 'favorite': return (a.isFavorite === b.isFavorite) ? 0 : (b.isFavorite ? 1 : -1);
+      case 'id': 
+      default: 
+        return parseInt(a.id) - parseInt(b.id);
+    }
+  });
+
   const problemsByTag = new Map<string, Problem[]>();
-  filteredProblems.forEach(p => {
+  // Use sorted problems for tags as well to maintain consistency, or stick to filtered
+  sortedProblems.forEach(p => {
     if (p.tags.length === 0) {
       const untaggedKey = '未分类';
       if (!problemsByTag.has(untaggedKey)) problemsByTag.set(untaggedKey, []);
@@ -478,7 +517,11 @@ export default function App() {
       {/* --- Top Navbar --- */}
       <header className={`h-14 border-b ${t.headerBorder} flex items-center justify-between px-4 ${t.headerBg} sticky top-0 z-20 shadow-sm transition-colors duration-300`}>
         <div className="flex items-center gap-4">
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} className={`p-2 hover:bg-black/5 rounded-md lg:hidden ${theme === 'dark' ? 'hover:bg-white/10' : ''}`}>
+          <button 
+            onClick={() => setSidebarOpen(!sidebarOpen)} 
+            className={`p-2 hover:bg-black/5 rounded-md ${theme === 'dark' ? 'hover:bg-white/10' : ''}`}
+            title={sidebarOpen ? "收起侧边栏" : "展开侧边栏"}
+          >
             <Menu size={20} />
           </button>
           <div className="flex items-center gap-2 font-bold text-lg">
@@ -533,7 +576,11 @@ export default function App() {
       <div className="flex flex-1 overflow-hidden">
         
         {/* --- Left Sidebar (Navigation) --- */}
-        <aside className={`${sidebarOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full'} lg:translate-x-0 lg:w-72 flex-shrink-0 border-r ${t.sidebarBorder} ${t.sidebarBg} flex flex-col transition-all duration-300 absolute lg:relative h-full z-10`}>
+        <aside className={`
+          flex-shrink-0 border-r ${t.sidebarBorder} ${t.sidebarBg} flex flex-col transition-all duration-300 z-10
+          fixed inset-y-0 left-0 lg:static lg:h-full
+          ${sidebarOpen ? 'translate-x-0 w-64 lg:w-72' : '-translate-x-full w-64 lg:w-0 lg:translate-x-0 lg:overflow-hidden'}
+        `}>
           
           <div className={`p-4 border-b ${t.sidebarBorder} ${t.sidebarBg} space-y-3 transition-colors duration-300`}>
              <div className="flex justify-between items-center">
@@ -567,14 +614,32 @@ export default function App() {
           </div>
           
           <div className="overflow-y-auto flex-1 custom-scrollbar">
-            {filteredProblems.length === 0 && (
+            {sortedProblems.length === 0 && (
                <div className={`text-center py-8 ${t.textMuted} text-sm`}>无笔记</div>
             )}
             
             {sidebarMode === 'list' ? (
               // --- LIST VIEW ---
               <div className="p-2 space-y-1">
-                {filteredProblems.map(problem => (
+                {/* Sort Bar */}
+                <div className={`flex items-center justify-between px-2 py-2 mb-2 text-xs ${t.textMuted} border-b ${t.divider}`}>
+                  <div className="flex items-center gap-1">
+                    <ArrowDownUp size={12} />
+                    <span>排序</span>
+                  </div>
+                  <select 
+                    value={sortOption} 
+                    onChange={(e) => setSortOption(e.target.value as any)}
+                    className={`bg-transparent border-none outline-none cursor-pointer font-medium hover:${t.text} text-right`}
+                  >
+                    <option value="id">题号</option>
+                    <option value="date">时间</option>
+                    <option value="difficulty">难度</option>
+                    <option value="favorite">收藏</option>
+                  </select>
+                </div>
+
+                {sortedProblems.map(problem => (
                   <div 
                     key={problem.id}
                     onClick={() => handleSelectProblem(problem.id)}
@@ -600,6 +665,17 @@ export default function App() {
             ) : (
               // --- TAGS VIEW ---
               <div className="pb-4">
+                {/* Collapse All */}
+                 <div className={`flex justify-end px-4 py-2 border-b ${t.divider}`}>
+                   <button 
+                     onClick={() => setExpandedTags(new Set())}
+                     className={`text-xs flex items-center gap-1 hover:text-indigo-600 transition-colors ${t.textMuted}`}
+                     title="全部收起"
+                   >
+                     <ChevronsUp size={12} /> 收起
+                   </button>
+                 </div>
+
                 {sortedTags.map(tag => {
                   const tagProblems = problemsByTag.get(tag) || [];
                   const isExpanded = expandedTags.has(tag);
@@ -637,6 +713,17 @@ export default function App() {
               </div>
             )}
           </div>
+          
+          {/* Sidebar Footer for collapse */}
+           <div className={`p-3 border-t ${t.sidebarBorder} flex justify-end`}>
+             <button 
+               onClick={() => setSidebarOpen(false)}
+               className={`p-2 rounded hover:bg-black/5 ${theme === 'dark' ? 'hover:bg-white/10 text-gray-400' : 'text-gray-500'}`}
+               title="收起侧边栏"
+             >
+               <PanelLeftClose size={18} />
+             </button>
+           </div>
         </aside>
 
         {/* --- Center Content (The Core) --- */}
@@ -775,7 +862,12 @@ export default function App() {
                         </span>
                         <div className="flex gap-2">
                            {selectedProblem.tags.map(tag => (
-                             <span key={tag} className={`flex items-center gap-1 text-xs ${t.textMuted} ${t.tagBg} px-2 py-1 rounded`}>
+                             <span 
+                              key={tag} 
+                              onClick={() => handleTagClick(tag)}
+                              className={`flex items-center gap-1 text-xs ${t.textMuted} ${t.tagBg} px-2 py-1 rounded cursor-pointer hover:opacity-80 transition-opacity hover:text-indigo-600`}
+                              title={`查看 "${tag}" 相关笔记`}
+                             >
                                <Hash size={10} /> {tag}
                              </span>
                            ))}

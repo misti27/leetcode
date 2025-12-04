@@ -17,10 +17,12 @@ interface BlockRendererProps {
 // Helper for rainbow colors based on nesting depth
 const getRainbowColor = (depth: number, theme: 'light' | 'dark' | 'eyecare') => {
   const colors = {
-    // Updated Dark Mode colors to be brighter/neon as requested
-    dark: ['#ffd700', '#ff79c6', '#8be9fd'], // Gold, Hot Pink, Cyan
-    light: ['#0451a5', '#098658', '#af00db'], // Blue, Green, Purple
-    eyecare: ['#8b4513', '#006400', '#00008b'], // SaddleBrown, DarkGreen, DarkBlue
+    // Dark Mode: Gold, Hot Pink, Cyan (Bright Neon)
+    dark: ['#ffd700', '#ff79c6', '#8be9fd'], 
+    // Light/Eyecare: Gold(Darker for contrast), Blue, Pink
+    // Using #d97706 (amber-600) for gold to ensure visibility on white background
+    light: ['#d97706', '#2563eb', '#db2777'], 
+    eyecare: ['#d97706', '#2563eb', '#db2777'], 
   };
   const palette = colors[theme] || colors.light;
   return palette[depth % palette.length];
@@ -63,7 +65,7 @@ const syntaxHighlight = (code: string, theme: 'light' | 'dark' | 'eyecare') => {
         colorIndex = bracketDepth;
       }
       
-      return <span key={i} style={{ color: getRainbowColor(colorIndex, theme) }}>{token}</span>;
+      return <span key={i} style={{ color: getRainbowColor(colorIndex, theme), fontWeight: theme !== 'dark' ? 'bold' : 'normal' }}>{token}</span>;
     }
     
     // Keywords
