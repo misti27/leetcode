@@ -6,7 +6,8 @@ import {
   Github, Moon, Sun, Eye, List, Tags as TagsIcon, 
   PanelLeftClose, ArrowDownUp, ChevronsUp, ArrowUp, ArrowDown, Filter,
   Trophy, Target, Activity, Calendar, CheckCircle2, Circle, ChevronDown,
-  FileJson, RotateCcw, X, Clock, Settings, Download, Upload, AlertTriangle
+  FileJson, RotateCcw, X, Clock, Settings, Download, Upload, AlertTriangle,
+  CheckSquare, Square, Tag
 } from 'lucide-react';
 import { Problem, Difficulty, ActivityLog, MasteryStatus } from './types';
 import { BlockRenderer } from './components/BlockRenderer';
@@ -641,6 +642,12 @@ export default function App() {
   const [expandedTags, setExpandedTags] = useState<Set<string>>(new Set());
   const [activeBlockId, setActiveBlockId] = useState<string>('');
   
+  // Selection Mode State
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBatchTagModal, setShowBatchTagModal] = useState(false);
+  const [batchTags, setBatchTags] = useState('');
+
   // Sorting & Filtering
   const [sortOption, setSortOption] = useState<SortOption>('id');
   const [isReversed, setIsReversed] = useState(false);
@@ -712,6 +719,47 @@ export default function App() {
   const selectedProblem = problems.find(p => p.id === selectedId);
 
   // --- Handlers ---
+
+  const toggleSelectionMode = () => {
+    if (isSelectionMode) {
+      setIsSelectionMode(false);
+      setSelectedIds(new Set());
+    } else {
+      setIsSelectionMode(true);
+      setSidebarMode('list'); // Force list view for simpler selection UI
+      setSidebarOpen(true);
+    }
+  };
+
+  const handleBatchSelect = (id: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectedIds(newSet);
+  };
+
+  const applyBatchTags = () => {
+    const tagsToAdd = batchTags.split(/[,，]/).map(t => t.trim()).filter(Boolean);
+    if (tagsToAdd.length === 0) return;
+    
+    setProblems(prev => prev.map(p => {
+      if (selectedIds.has(p.id)) {
+        // Create new set of tags to avoid duplicates
+        const mergedTags = new Set([...p.tags, ...tagsToAdd]);
+        return { 
+          ...p, 
+          tags: Array.from(mergedTags), 
+          lastEdited: Date.now() 
+        };
+      }
+      return p;
+    }));
+    
+    setShowBatchTagModal(false);
+    setBatchTags('');
+    setIsSelectionMode(false);
+    setSelectedIds(new Set());
+  };
 
   const handleBackup = () => {
     const backupData = {
@@ -1295,13 +1343,22 @@ export default function App() {
                 <span className={`text-xs font-semibold ${t.textMuted} uppercase tracking-wider`}>
                   {sidebarMode === 'list' ? '题目列表' : '标签分类'}
                 </span>
-                <button 
-                  onClick={handleCreateNew} 
-                  className="flex items-center gap-1 text-xs bg-indigo-600 text-white px-2 py-1 rounded-md hover:bg-indigo-700 transition-colors shadow-sm"
-                  title="新建笔记"
-                >
-                  <Plus size={14} /> 新建
-                </button>
+                <div className="flex items-center gap-1">
+                  <button 
+                    onClick={toggleSelectionMode} 
+                    className={`flex items-center justify-center p-1.5 rounded-md hover:bg-black/5 transition-colors shadow-sm ${isSelectionMode ? 'bg-indigo-100 text-indigo-600' : 'bg-white text-gray-600 border border-gray-200'}`}
+                    title={isSelectionMode ? "退出批量模式" : "批量管理"}
+                  >
+                    <CheckSquare size={14} />
+                  </button>
+                  <button 
+                    onClick={handleCreateNew} 
+                    className="flex items-center gap-1 text-xs bg-indigo-600 text-white px-2 py-1.5 rounded-md hover:bg-indigo-700 transition-colors shadow-sm"
+                    title="新建笔记"
+                  >
+                    <Plus size={14} /> 新建
+                  </button>
+                </div>
              </div>
              
              {/* View Toggle */}
@@ -1368,18 +1425,32 @@ export default function App() {
                 {sortedProblems.map(problem => (
                   <div 
                     key={problem.id}
-                    onClick={() => handleSelectProblem(problem.id)}
-                    className={`group flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all border border-transparent ${selectedId === problem.id && view === 'problem' ? t.cardSelected : t.cardHover}`}
+                    onClick={(e) => {
+                      if (isSelectionMode) {
+                        e.stopPropagation();
+                        handleBatchSelect(problem.id);
+                      } else {
+                        handleSelectProblem(problem.id);
+                      }
+                    }}
+                    className={`group flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all border border-transparent ${selectedId === problem.id && view === 'problem' && !isSelectionMode ? t.cardSelected : t.cardHover} ${isSelectionMode && selectedIds.has(problem.id) ? 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/20 dark:border-indigo-800' : ''}`}
                   >
-                    <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${problem.status === 'mastered' ? 'bg-green-500 ring-2 ring-green-200 dark:ring-green-900' : 'bg-gray-300 dark:bg-gray-600'}`} title={problem.status === 'mastered' ? '已掌握' : '学习中'} />
+                    {isSelectionMode ? (
+                      <div className={`mt-1.5 flex-shrink-0 ${selectedIds.has(problem.id) ? 'text-indigo-600' : 'text-gray-400'}`}>
+                        {selectedIds.has(problem.id) ? <CheckSquare size={16} /> : <Square size={16} />}
+                      </div>
+                    ) : (
+                      <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${problem.status === 'mastered' ? 'bg-green-500 ring-2 ring-green-200 dark:ring-green-900' : 'bg-gray-300 dark:bg-gray-600'}`} title={problem.status === 'mastered' ? '已掌握' : '学习中'} />
+                    )}
+                    
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start">
                         <h3 className={`truncate text-sm leading-tight mb-1 ${
-                          selectedId === problem.id && view === 'problem' ? 'font-bold' : 'font-medium'
+                          selectedId === problem.id && view === 'problem' && !isSelectionMode ? 'font-bold' : 'font-medium'
                         } ${getDifficultyTextColor(problem.difficulty)}`}>
                           {problem.title}
                         </h3>
-                        {problem.isFavorite && <Star size={12} className="text-yellow-400 fill-current mt-0.5 flex-shrink-0" />}
+                        {problem.isFavorite && !isSelectionMode && <Star size={12} className="text-yellow-400 fill-current mt-0.5 flex-shrink-0" />}
                       </div>
                       
                       {/* Dates Display */}
@@ -1388,10 +1459,20 @@ export default function App() {
                            <Plus size={10} className="opacity-70" /> 
                            <span>新增: {new Date(problem.createdAt || problem.lastEdited).toLocaleDateString('zh-CN')}</span>
                         </div>
-                        {problem.status === 'mastered' && problem.masteredAt && (
+                        {!isSelectionMode && problem.status === 'mastered' && problem.masteredAt && (
                           <div className={`text-[10px] text-green-600 dark:text-green-400 flex items-center gap-1`}>
                              <CheckCircle2 size={10} className="opacity-70" /> 
                              <span>掌握: {new Date(problem.masteredAt).toLocaleDateString('zh-CN')}</span>
+                          </div>
+                        )}
+                        {/* Tags Preview */}
+                        {isSelectionMode && problem.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                             {problem.tags.slice(0, 3).map(tag => (
+                               <span key={tag} className="text-[9px] px-1 rounded bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300">
+                                 {tag}
+                               </span>
+                             ))}
                           </div>
                         )}
                       </div>
@@ -1455,14 +1536,33 @@ export default function App() {
             )}
           </div>
           
-           <div className={`p-3 border-t ${t.sidebarBorder} flex justify-end`}>
-             <button 
-               onClick={() => setSidebarOpen(false)}
-               className={`p-2 rounded hover:bg-black/5 ${theme === 'dark' ? 'hover:bg-white/10 text-gray-400' : 'text-gray-500'}`}
-               title="收起侧边栏"
-             >
-               <PanelLeftClose size={18} />
-             </button>
+           <div className={`p-3 border-t ${t.sidebarBorder}`}>
+             {isSelectionMode ? (
+               <div className="flex items-center justify-between gap-2">
+                 <span className="text-xs font-semibold text-indigo-600 px-2">
+                   已选 {selectedIds.size} 项
+                 </span>
+                 <div className="flex gap-2">
+                   <button 
+                     onClick={() => setShowBatchTagModal(true)}
+                     disabled={selectedIds.size === 0}
+                     className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                   >
+                     <Tag size={12} /> 添加标签
+                   </button>
+                 </div>
+               </div>
+             ) : (
+               <div className="flex justify-end">
+                 <button 
+                   onClick={() => setSidebarOpen(false)}
+                   className={`p-2 rounded hover:bg-black/5 ${theme === 'dark' ? 'hover:bg-white/10 text-gray-400' : 'text-gray-500'}`}
+                   title="收起侧边栏"
+                 >
+                   <PanelLeftClose size={18} />
+                 </button>
+               </div>
+             )}
            </div>
         </aside>
 
@@ -1755,6 +1855,57 @@ export default function App() {
 
       </div>
       
+      {/* --- Batch Tag Modal --- */}
+      {showBatchTagModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+           <div className={`w-full max-w-md rounded-2xl shadow-xl border overflow-hidden ${t.cardBg} ${t.cardBorder}`}>
+             <div className={`flex items-center justify-between px-6 py-4 border-b ${t.headerBorder}`}>
+               <div className="flex items-center gap-2">
+                 <Tag size={20} className={t.textMuted} />
+                 <h2 className={`font-bold text-lg ${t.text}`}>批量添加标签</h2>
+               </div>
+               <button onClick={() => setShowBatchTagModal(false)} className={`p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10 ${t.textMuted}`}>
+                 <X size={20} />
+               </button>
+             </div>
+             
+             <div className="p-6">
+                <p className={`text-sm mb-4 ${t.textMuted}`}>
+                   正在为 <span className="font-bold text-indigo-600">{selectedIds.size}</span> 个题目添加标签。
+                </p>
+                <div className="space-y-2">
+                  <label className={`text-xs font-semibold ${t.textMuted} uppercase`}>标签名称</label>
+                  <input 
+                    type="text"
+                    autoFocus
+                    value={batchTags}
+                    onChange={(e) => setBatchTags(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && applyBatchTags()}
+                    className={`w-full p-3 rounded-md border text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 ${t.inputBg} ${t.inputBorder} ${t.text}`}
+                    placeholder="例如: 动态规划, 二叉树 (用逗号分隔)"
+                  />
+                  <p className="text-xs text-gray-400">输入多个标签请用逗号分隔。</p>
+                </div>
+
+                <div className="flex justify-end gap-3 mt-6">
+                  <button 
+                    onClick={() => setShowBatchTagModal(false)}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${t.text}`}
+                  >
+                    取消
+                  </button>
+                  <button 
+                    onClick={applyBatchTags}
+                    className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm transition-colors"
+                  >
+                    确认添加
+                  </button>
+                </div>
+             </div>
+           </div>
+        </div>
+      )}
+
       {/* --- Settings Modal --- */}
       {showSettings && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
