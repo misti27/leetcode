@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { ContentBlock, BlockType } from '../types';
 import { 
@@ -21,6 +22,7 @@ const EditorBlockItem = ({
   updateBlock, 
   removeBlock, 
   moveBlock, 
+  insertBlockAfter,
   theme,
   s 
 }: any) => {
@@ -45,6 +47,52 @@ const EditorBlockItem = ({
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
   }, [block.content, block.codeSnippets, editingLang, isPreview, block.type]);
+
+  // Handle Paste Event for Images
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items;
+    let blob: File | null = null;
+
+    // Try to find an image item in clipboard
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        blob = items[i].getAsFile();
+        break;
+      }
+    }
+    
+    // Fallback to files property if items didn't work (some browsers)
+    if (!blob && e.clipboardData.files && e.clipboardData.files.length > 0) {
+      const file = e.clipboardData.files[0];
+      if (file.type.startsWith('image/')) {
+        blob = file;
+      }
+    }
+
+    if (blob) {
+      e.preventDefault();
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const base64 = evt.target?.result as string;
+        
+        if (block.type === 'image') {
+          // If current block is image, update it
+          updateBlock(block.id, { content: base64 });
+        } else {
+          // If current block is text/code/etc, insert new image block after
+          const newBlock: ContentBlock = {
+            id: Date.now().toString(),
+            type: 'image',
+            content: base64
+          };
+          if (insertBlockAfter) {
+            insertBlockAfter(index, newBlock);
+          }
+        }
+      };
+      reader.readAsDataURL(blob);
+    }
+  };
 
   const insertFormat = (before: string, after: string = '') => {
     const textarea = textareaRef.current;
@@ -204,10 +252,11 @@ const EditorBlockItem = ({
                 <textarea
                   ref={textareaRef}
                   className={`w-full p-2 border-none resize-none focus:ring-0 text-base leading-relaxed whitespace-pre-wrap ${s.cardBg} ${s.text} ${s.placeholder}`}
-                  placeholder="输入文本内容... (支持 Markdown & LaTeX)"
+                  placeholder="输入文本内容... (支持 Markdown & LaTeX，支持直接粘贴图片)"
                   rows={1}
                   value={block.content}
                   onChange={(e) => updateBlock(block.id, { content: e.target.value })}
+                  onPaste={handlePaste}
                   style={{ minHeight: '80px', overflow: 'hidden' }}
                 />
               )}
@@ -243,6 +292,7 @@ const EditorBlockItem = ({
                 rows={3}
                 value={getCurrentCode()}
                 onChange={(e) => handleCodeChange(e.target.value)}
+                onPaste={handlePaste}
                 style={{ minHeight: '120px', overflow: 'hidden' }}
               />
             </div>
@@ -258,22 +308,53 @@ const EditorBlockItem = ({
               <input
                 type="text"
                 className={`w-full p-2 border rounded text-sm focus:ring-1 focus:ring-indigo-500 focus:outline-none ${s.cardBg} ${s.inputBorder} ${s.text} ${s.placeholder}`}
-                placeholder="图片 URL (例如 https://...)"
-                value={block.content}
+                placeholder="图片 URL 或直接粘贴截图..."
+                value={block.content?.length > 100 ? '(Base64 Image Data)' : block.content}
                 onChange={(e) => updateBlock(block.id, { content: e.target.value })}
+                onPaste={handlePaste}
               />
               {block.content && (
-                <div className="relative h-40 w-full bg-gray-100 rounded overflow-hidden border border-dashed border-gray-300">
-                  <img src={block.content} alt="Preview" className="h-full w-full object-contain" />
+                <div className="relative w-full bg-gray-100 border border-dashed border-gray-300 p-2 text-center">
+                  <div className="inline-block relative" style={{ 
+                      width: block.scale ? `${block.scale}%` : 'auto',
+                      maxWidth: '100%' 
+                  }}>
+                    <img 
+                      src={block.content} 
+                      alt="Preview" 
+                      className="h-auto block mx-auto"
+                      style={{ width: block.scale ? '100%' : 'auto', maxWidth: '100%' }}
+                    />
+                  </div>
                 </div>
               )}
-              <input
-                type="text"
-                className={`w-full p-2 border-b text-xs focus:outline-none ${s.cardBg} ${theme === 'dark' ? 'border-gray-700 text-gray-500' : 'border-gray-100 text-gray-500'}`}
-                placeholder="图片说明 (可选)"
-                value={block.caption || ''}
-                onChange={(e) => updateBlock(block.id, { caption: e.target.value })}
-              />
+              <div className="flex gap-2 items-center">
+                <input
+                  type="text"
+                  className={`flex-1 p-2 border-b text-xs focus:outline-none ${s.cardBg} ${theme === 'dark' ? 'border-gray-700 text-gray-500' : 'border-gray-100 text-gray-500'}`}
+                  placeholder="图片说明 (可选)"
+                  value={block.caption || ''}
+                  onChange={(e) => updateBlock(block.id, { caption: e.target.value })}
+                />
+                <div className={`flex items-center gap-1 px-2 py-1 rounded border text-xs ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+                    <span>缩放:</span>
+                    <input 
+                      type="number"
+                      min="10"
+                      max="100"
+                      step="5"
+                      placeholder="Auto"
+                      className={`w-12 text-center bg-transparent focus:outline-none ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}
+                      value={block.scale || ''}
+                      onChange={(e) => {
+                         let val = parseInt(e.target.value);
+                         if (isNaN(val)) val = 0;
+                         updateBlock(block.id, { scale: val > 0 ? val : undefined });
+                      }}
+                    />
+                    <span>%</span>
+                </div>
+              </div>
             </div>
           )}
 
@@ -288,6 +369,7 @@ const EditorBlockItem = ({
                 rows={1}
                 value={block.content}
                 onChange={(e) => updateBlock(block.id, { content: e.target.value })}
+                onPaste={handlePaste}
                 style={{ minHeight: '40px', overflow: 'hidden' }}
               />
             </div>
@@ -328,6 +410,12 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({ blocks, onChange, them
     const newBlocks = [...blocks];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     [newBlocks[index], newBlocks[targetIndex]] = [newBlocks[targetIndex], newBlocks[index]];
+    onChange(newBlocks);
+  };
+
+  const insertBlockAfter = (index: number, newBlock: ContentBlock) => {
+    const newBlocks = [...blocks];
+    newBlocks.splice(index + 1, 0, newBlock);
     onChange(newBlocks);
   };
 
@@ -386,6 +474,7 @@ export const BlockEditor: React.FC<BlockEditorProps> = ({ blocks, onChange, them
             updateBlock={updateBlock}
             removeBlock={removeBlock}
             moveBlock={moveBlock}
+            insertBlockAfter={insertBlockAfter}
             theme={theme}
             s={s}
           />

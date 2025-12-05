@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { ContentBlock } from '../types';
 import { Copy, Bot, Check, Lightbulb } from 'lucide-react';
@@ -179,8 +180,6 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, theme = 'li
               ol: ({node, ...props}) => <ol className={`list-decimal pl-5 mb-4 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`} {...props} />,
               li: ({node, ...props}) => <li className="mb-1" {...props} />,
               code: ({node, inline, className, children, ...props}: any) => {
-                // Heuristic: If inline is undefined (missing in v9), check for newlines or language class.
-                // If it has a language class, it's likely a block. If it has newlines, it's a block.
                 const hasLang = /language-(\w+)/.exec(className || '');
                 const isInline = inline ?? (!hasLang && !String(children).includes('\n'));
 
@@ -303,19 +302,29 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, theme = 'li
 
     case 'image':
       return (
-        <div id={block.id} className="scroll-mt-20 mb-6">
-          <div className={`rounded-lg overflow-hidden border shadow-sm ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+        <div id={block.id} className="scroll-mt-20 mb-6 text-center">
+          <div 
+            className={`shadow-sm inline-block relative ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}
+            style={{ 
+              width: block.scale ? `${block.scale}%` : 'auto',
+              maxWidth: '100%' 
+            }}
+          >
              <img 
                src={block.content || 'https://picsum.photos/800/400'} 
                alt={block.caption || 'Problem visual'} 
-               className={`w-full h-auto object-cover ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'}`}
+               className={`h-auto block mx-auto ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'}`}
+               style={{
+                 width: block.scale ? '100%' : 'auto',
+                 maxWidth: '100%'
+               }}
                onError={(e) => {
                  (e.target as HTMLImageElement).src = 'https://picsum.photos/800/400?grayscale';
                }}
              />
           </div>
           {block.caption && (
-            <p className={`mt-2 text-center text-sm italic ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>{block.caption}</p>
+            <p className={`mt-2 text-center text-sm ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>{block.caption}</p>
           )}
         </div>
       );
