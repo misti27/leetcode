@@ -19,6 +19,9 @@ View your app in AI Studio: https://ai.studio/apps/drive/15JtvXCJfU5DeLlwfQBGIsM
 3. Run the app:
    `npm run dev`
 
+## 已部署
+https://leetcodenotebook.netlify.app/
+
 ## 页面预览
 
 题目页面
