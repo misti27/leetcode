@@ -37,18 +37,28 @@ const syntaxHighlight = (code: string, theme: 'light' | 'dark' | 'eyecare') => {
   // 2. Strings ("..." or '...')
   // 3. Delimiters/Brackets
   // 4. Whitespace
-  const tokens = code.split(/(\/\/.*|\/\*[\s\S]*?\*\/|"[^"]*"|'[^']*'|[(){}\[\],;.]|\s+)/g).filter(Boolean);
+  const tokens = code.split(
+    /(\/\/.*|\/\*[\s\S]*?\*\/|#.*|--.*|<!--[\s\S]*?-->|"[^"]*"|'[^']*'|`[^`]*`|[(){}\[\],;.]|\s+)/g
+  ).filter(Boolean);
 
   let bracketDepth = 0;
 
   return tokens.map((token, i) => {
-    // Comments
-    if (token.startsWith('//') || token.startsWith('/*')) {
+    // Determine if token is a comment based on common prefixes
+    const isComment = 
+      token.startsWith('//') || 
+      token.startsWith('/*') || 
+      token.startsWith('#') || 
+      token.startsWith('--') || 
+      token.startsWith('<!--');
+
+    if (isComment) {
+      // 统一应用绿色斜体样式
       return <span key={i} className={theme === 'dark' ? "text-[#6a9955] italic" : "text-[#4b9f52] italic"}>{token}</span>;
     }
 
-    // Strings
-    if (token.startsWith('"') || token.startsWith("'")) {
+    // Strings (增加了对 JS 模板字符串 `...` 的支持)
+    if (token.startsWith('"') || token.startsWith("'") || token.startsWith("`")) {
        return <span key={i} className={theme === 'dark' ? "text-[#ce9178]" : "text-[#a31515]"}>{token}</span>;
     }
 
