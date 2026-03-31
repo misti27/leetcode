@@ -49,7 +49,6 @@ const syntaxHighlight = (code: string, theme: 'light' | 'dark' | 'eyecare') => {
       token.startsWith('//') || 
       token.startsWith('/*') || 
       token.startsWith('#') || 
-      token.startsWith('--') || 
       token.startsWith('<!--');
 
     if (isComment) {
