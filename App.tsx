@@ -307,6 +307,7 @@ const statusThemeClasses: Record<
     learningDot: string;
     masteredButton: string;
     masteredMeta: string;
+    masteredDateText: string;
     learningMeta: string;
   }
 > = {
@@ -319,6 +320,7 @@ const statusThemeClasses: Record<
     learningDot: 'bg-gray-300',
     masteredButton: 'bg-green-50 border-green-200 text-green-700',
     masteredMeta: 'bg-green-100 text-green-700',
+    masteredDateText: 'text-green-600',
     learningMeta: 'bg-gray-100 text-gray-500',
   },
   dark: {
@@ -330,6 +332,7 @@ const statusThemeClasses: Record<
     learningDot: 'bg-gray-600',
     masteredButton: 'bg-green-900/20 border-green-800 text-green-400',
     masteredMeta: 'bg-green-900/30 text-green-400',
+    masteredDateText: 'text-green-400',
     learningMeta: 'bg-gray-800 text-gray-400',
   },
   eyecare: {
@@ -341,6 +344,7 @@ const statusThemeClasses: Record<
     learningDot: 'bg-[#8ca08f]',
     masteredButton: 'bg-green-100/80 border-green-300 text-green-800',
     masteredMeta: 'bg-green-100/80 text-green-800',
+    masteredDateText: 'text-green-700',
     learningMeta: 'bg-[#baddbf] text-[#5d6b75]',
   },
 };
@@ -1233,6 +1237,7 @@ export default function App() {
   };
 
   const t = themeClasses[theme];
+  const statusT = statusThemeClasses[theme];
 
   // 1. First, filter by search query
   let filteredList = problems.filter(p => 
@@ -1529,7 +1534,7 @@ const tableOfContents = React.useMemo(() => {
                            <span>新增: {new Date(problem.createdAt || problem.lastEdited).toLocaleDateString('zh-CN')}</span>
                         </div>
                         {!isSelectionMode && problem.status === 'mastered' && problem.masteredAt && (
-                          <div className={`text-[10px] text-green-600 dark:text-green-400 flex items-center gap-1`}>
+                          <div className={`text-[10px] ${statusT.masteredDateText} flex items-center gap-1`}>
                              <CheckCircle2 size={10} className="opacity-70" /> 
                              <span>掌握: {new Date(problem.masteredAt).toLocaleDateString('zh-CN')}</span>
                           </div>
@@ -1912,7 +1917,7 @@ const tableOfContents = React.useMemo(() => {
                     cursor-pointer py-1 pl-4 transition-all duration-200 border-l-2 -ml-[2px]
                     ${activeBlockId === item.id 
                       ? 'border-indigo-500 font-medium text-indigo-600' 
-                      : 'border-transparent hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600'}
+                      : 'border-transparent hover:text-indigo-600 hover:border-indigo-300'}
                   `}
                 >
                   {item.label}

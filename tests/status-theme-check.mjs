@@ -25,3 +25,21 @@ for (const check of darkVariantChecks) {
     `${check.name} should use explicit theme classes instead of dark: variants`,
   );
 }
+
+assert.match(
+  appSource,
+  /const t = themeClasses\[theme\];\s+const statusT = statusThemeClasses\[theme\];\s+\n\s+\/\/ 1\. First, filter by search query/,
+  'App should define statusT in the main component before rendering status-dependent sections',
+);
+
+assert.match(
+  appSource,
+  /problem\.status === 'mastered' && problem\.masteredAt[\s\S]{0,220}statusT\.masteredDateText/,
+  'mastered date text should reuse the mastered status text color',
+);
+
+assert.match(
+  appSource,
+  /activeBlockId === item\.id[\s\S]{0,240}'border-indigo-500 font-medium text-indigo-600'[\s\S]{0,200}hover:text-indigo-600/,
+  'right-side navigation hover text should use the same purple as the active accent',
+);
