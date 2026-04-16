@@ -12,6 +12,7 @@ import {
 import { Problem, Difficulty, ActivityLog, MasteryStatus } from './types';
 import { BlockRenderer } from './components/BlockRenderer';
 import { BlockEditor } from './components/BlockEditor';
+import { hasInlineImageBlocks, migrateInlineImageBlocks } from './services/imageStorage';
 
 // --- Shared Timestamps for Consistency ---
 const NOW = Date.now();
@@ -667,17 +668,58 @@ export default function App() {
   
   // Temporary state for editing
   const [editForm, setEditForm] = useState<Partial<Problem>>({});
+  const hasLegacyInlineImages = React.useMemo(() => hasInlineImageBlocks(problems), [problems]);
 
   useEffect(() => {
-    localStorage.setItem('leetnotes-data-v2', JSON.stringify(problems));
-  }, [problems]);
+    if (!hasLegacyInlineImages) return;
+
+    let cancelled = false;
+
+    const migrateImages = async () => {
+      try {
+        const result = await migrateInlineImageBlocks(problems);
+        if (!cancelled && result.changed) {
+          setProblems(result.problems);
+        }
+      } catch (error) {
+        console.error('Failed to migrate inline images into IndexedDB', error);
+        if (!cancelled) {
+          alert('检测到旧版图片数据，但迁移到 IndexedDB 失败。请先不要继续编辑，刷新后重试。');
+        }
+      }
+    };
+
+    migrateImages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasLegacyInlineImages, problems]);
 
   useEffect(() => {
-    localStorage.setItem('leetnotes-logs-v2', JSON.stringify(activityLogs));
+    if (hasLegacyInlineImages) return;
+
+    try {
+      localStorage.setItem('leetnotes-data-v2', JSON.stringify(problems));
+    } catch (error) {
+      console.error('Failed to persist problems into localStorage', error);
+      alert('保存失败：本地存储空间不足或浏览器阻止了写入。');
+    }
+  }, [hasLegacyInlineImages, problems]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('leetnotes-logs-v2', JSON.stringify(activityLogs));
+    } catch (error) {
+      console.error('Failed to persist activity logs into localStorage', error);
+      alert('保存学习记录失败：浏览器本地存储写入异常。');
+    }
   }, [activityLogs]);
 
   useEffect(() => {
     localStorage.setItem('leetnotes-theme', theme);
+    document.documentElement.classList.remove('theme-light', 'theme-dark', 'theme-eyecare');
+    document.documentElement.classList.add(`theme-${theme}`);
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
@@ -874,7 +916,7 @@ export default function App() {
     };
 
     setProblems([newProblem, ...problems]);
-    setActivityLogs([newLog, ...activityLogs]);
+    setActivityLogs(prev => [newLog, ...prev]);
     setSelectedId(newId);
     setEditForm(newProblem);
     setIsEditing(true);
@@ -1015,7 +1057,7 @@ export default function App() {
          type: 'master',
          timestamp: now
        };
-       setActivityLogs([newLog, ...activityLogs]);
+       setActivityLogs(prev => [newLog, ...prev]);
     }
   };
 
@@ -1215,38 +1257,15 @@ export default function App() {
   });
   const sortedTags = Array.from(problemsByTag.keys()).sort((a, b) => a.localeCompare(b, 'zh-CN'));
 
-  // Calculate Tag Statistics (NOT USED IN UI ANYMORE, but logic kept for structure)
-  const tagStats = React.useMemo(() => {
-    const stats: { name: string; count: number }[] = [];
-    const allProblemsByTag = new Map<string, number>();
-    problems.forEach(p => {
-      p.tags.forEach(t => {
-        allProblemsByTag.set(t, (allProblemsByTag.get(t) || 0) + 1);
-      });
-    });
-    allProblemsByTag.forEach((count, name) => {
-      stats.push({ name, count });
-    });
-    return stats.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-  }, [problems]);
-
   // Generate Table of Contents
-  const tableOfContents = React.useMemo(() => {
+const tableOfContents = React.useMemo(() => {
     if (!selectedProblem) return [];
     
     const items = [];
-    if (selectedProblem.blocks.length > 0) {
-        items.push({ id: selectedProblem.blocks[0].id, label: '题目描述' });
-    }
-
-    selectedProblem.blocks.forEach((block, index) => {
-      if (index === 0) return;
-
+    selectedProblem.blocks.forEach((block) => {
       if (block.type === 'text' && block.content.startsWith('#')) {
         const heading = block.content.split('\n')[0].replace(/#+\s/, '');
         items.push({ id: block.id, label: heading });
-      } else if (block.type === 'code') {
-        items.push({ id: block.id, label: `解法代码 (${block.language})` });
       }
     });
     return items;
@@ -1567,7 +1586,7 @@ export default function App() {
         </aside>
 
         {/* --- Center Content (The Core) --- */}
-        <main className={`flex-1 overflow-y-auto ${t.bg} relative transition-colors duration-300`}>
+        <main className={`flex-1 overflow-y-auto custom-scrollbar ${t.bg} relative transition-colors duration-300`}>
           
           {/* View Switcher */}
           {view === 'dashboard' ? (

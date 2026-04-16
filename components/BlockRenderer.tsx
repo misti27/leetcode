@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { ContentBlock } from '../types';
 import { Copy, Bot, Check, Lightbulb } from 'lucide-react';
 import { explainCode } from '../services/geminiService';
+import { ImageBlockImage } from './ImageBlockImage';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
@@ -319,17 +320,15 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ block, theme = 'li
               maxWidth: '100%' 
             }}
           >
-             <img 
-               src={block.content || 'https://picsum.photos/800/400'} 
-               alt={block.caption || 'Problem visual'} 
+             <ImageBlockImage
+               content={block.content}
+               alt={block.caption || 'Problem visual'}
                className={`h-auto block mx-auto ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'}`}
                style={{
                  width: block.scale ? '100%' : 'auto',
                  maxWidth: '100%'
                }}
-               onError={(e) => {
-                 (e.target as HTMLImageElement).src = 'https://picsum.photos/800/400?grayscale';
-               }}
+               fallbackSrc="https://picsum.photos/800/400?grayscale"
              />
           </div>
           {block.caption && (

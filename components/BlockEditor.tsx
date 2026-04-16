@@ -7,7 +7,9 @@ import {
   Bold, Italic, Link as LinkIcon, Quote, List, ListOrdered, 
   Minus, Sigma, Smile, Table
 } from 'lucide-react';
+import { isImageRef, saveImageBlob } from '../services/imageStorage';
 import { BlockRenderer } from './BlockRenderer';
+import { ImageBlockImage } from './ImageBlockImage';
 
 interface BlockEditorProps {
   blocks: ContentBlock[];
@@ -49,7 +51,7 @@ const EditorBlockItem = ({
   }, [block.content, block.codeSnippets, editingLang, isPreview, block.type]);
 
   // Handle Paste Event for Images
-  const handlePaste = (e: React.ClipboardEvent) => {
+  const handlePaste = async (e: React.ClipboardEvent) => {
     const items = e.clipboardData.items;
     let blob: File | null = null;
 
@@ -71,26 +73,25 @@ const EditorBlockItem = ({
 
     if (blob) {
       e.preventDefault();
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        const base64 = evt.target?.result as string;
-        
+      try {
+        const imageRef = await saveImageBlob(blob);
+
         if (block.type === 'image') {
-          // If current block is image, update it
-          updateBlock(block.id, { content: base64 });
+          updateBlock(block.id, { content: imageRef });
         } else {
-          // If current block is text/code/etc, insert new image block after
           const newBlock: ContentBlock = {
             id: Date.now().toString(),
             type: 'image',
-            content: base64
+            content: imageRef
           };
           if (insertBlockAfter) {
             insertBlockAfter(index, newBlock);
           }
         }
-      };
-      reader.readAsDataURL(blob);
+      } catch (error) {
+        console.error('Failed to save pasted image', error);
+        alert('图片保存失败，当前浏览器可能禁止了本地图片存储。');
+      }
     }
   };
 
@@ -117,6 +118,12 @@ const EditorBlockItem = ({
       textarea.setSelectionRange(cursorPos, cursorPos);
     }, 0);
   };
+
+  const imageStoredInDb = isImageRef(block.content);
+  const imageInputValue = imageStoredInDb || block.content?.length > 100 ? '' : block.content;
+  const imageInputPlaceholder = imageStoredInDb
+    ? '图片已存储在 IndexedDB；可输入远程 URL 或直接粘贴新图覆盖'
+    : '图片 URL 或直接粘贴截图...';
 
   const renderToolbar = () => (
     <div className={`flex flex-wrap items-center gap-1 p-1 mb-2 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'}`}>
@@ -308,20 +315,23 @@ const EditorBlockItem = ({
               <input
                 type="text"
                 className={`w-full p-2 border rounded text-sm focus:ring-1 focus:ring-indigo-500 focus:outline-none ${s.cardBg} ${s.inputBorder} ${s.text} ${s.placeholder}`}
-                placeholder="图片 URL 或直接粘贴截图..."
-                value={block.content?.length > 100 ? '(Base64 Image Data)' : block.content}
+                placeholder={imageInputPlaceholder}
+                value={imageInputValue}
                 onChange={(e) => updateBlock(block.id, { content: e.target.value })}
                 onPaste={handlePaste}
               />
+              {imageStoredInDb && (
+                <p className="text-xs text-emerald-600">当前图片内容已存到 IndexedDB，本地保存时不会再塞进 localStorage。</p>
+              )}
               {block.content && (
                 <div className="relative w-full bg-gray-100 border border-dashed border-gray-300 p-2 text-center">
                   <div className="inline-block relative" style={{ 
                       width: block.scale ? `${block.scale}%` : 'auto',
                       maxWidth: '100%' 
                   }}>
-                    <img 
-                      src={block.content} 
-                      alt="Preview" 
+                    <ImageBlockImage
+                      content={block.content}
+                      alt="Preview"
                       className="h-auto block mx-auto"
                       style={{ width: block.scale ? '100%' : 'auto', maxWidth: '100%' }}
                     />
