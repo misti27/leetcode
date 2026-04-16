@@ -296,6 +296,55 @@ const JSON_TEMPLATE = `{
 type Theme = 'light' | 'dark' | 'eyecare';
 type SortOption = 'id' | 'date' | 'difficulty';
 
+const statusThemeClasses: Record<
+  Theme,
+  {
+    timelineMasterRing: string;
+    timelineLearningRing: string;
+    masteredBadge: string;
+    learningBadge: string;
+    masteredDot: string;
+    learningDot: string;
+    masteredButton: string;
+    masteredMeta: string;
+    learningMeta: string;
+  }
+> = {
+  light: {
+    timelineMasterRing: 'ring-green-100',
+    timelineLearningRing: 'ring-red-100',
+    masteredBadge: 'text-green-600 bg-green-50',
+    learningBadge: 'text-red-600 bg-red-50',
+    masteredDot: 'bg-green-500 ring-2 ring-green-200',
+    learningDot: 'bg-gray-300',
+    masteredButton: 'bg-green-50 border-green-200 text-green-700',
+    masteredMeta: 'bg-green-100 text-green-700',
+    learningMeta: 'bg-gray-100 text-gray-500',
+  },
+  dark: {
+    timelineMasterRing: 'ring-green-900/30',
+    timelineLearningRing: 'ring-red-900/30',
+    masteredBadge: 'text-green-400 bg-green-900/20',
+    learningBadge: 'text-red-400 bg-red-900/20',
+    masteredDot: 'bg-green-500 ring-2 ring-green-900',
+    learningDot: 'bg-gray-600',
+    masteredButton: 'bg-green-900/20 border-green-800 text-green-400',
+    masteredMeta: 'bg-green-900/30 text-green-400',
+    learningMeta: 'bg-gray-800 text-gray-400',
+  },
+  eyecare: {
+    timelineMasterRing: 'ring-green-200',
+    timelineLearningRing: 'ring-red-200',
+    masteredBadge: 'text-green-700 bg-green-100/80',
+    learningBadge: 'text-red-700 bg-red-100/80',
+    masteredDot: 'bg-green-500 ring-2 ring-green-200',
+    learningDot: 'bg-[#8ca08f]',
+    masteredButton: 'bg-green-100/80 border-green-300 text-green-800',
+    masteredMeta: 'bg-green-100/80 text-green-800',
+    learningMeta: 'bg-[#baddbf] text-[#5d6b75]',
+  },
+};
+
 // --- Dashboard Sub-Component ---
 const PersonalDashboard = ({ 
   problems, 
@@ -311,6 +360,7 @@ const PersonalDashboard = ({
   onNavigate: (id: string) => void
 }) => {
   const t = themeClasses[theme];
+  const statusT = statusThemeClasses[theme];
   const [activeTab, setActiveTab] = useState<'added' | 'history'>('added');
   
   // Stats - Mastery
@@ -582,7 +632,7 @@ const PersonalDashboard = ({
           {displayedLogs.map((log, index) => (
             <div key={log.id} className="flex gap-4 group">
                <div className="flex flex-col items-center">
-                 <div className={`w-2.5 h-2.5 rounded-full mt-1.5 ${log.type === 'master' ? 'bg-green-500 ring-4 ring-green-100 dark:ring-green-900/30' : 'bg-red-500 ring-4 ring-red-100 dark:ring-red-900/30'}`}></div>
+                 <div className={`w-2.5 h-2.5 rounded-full mt-1.5 ${log.type === 'master' ? `bg-green-500 ring-4 ${statusT.timelineMasterRing}` : `bg-red-500 ring-4 ${statusT.timelineLearningRing}`}`}></div>
                  {index !== displayedLogs.length - 1 && (
                    <div className={`w-0.5 flex-1 mt-1 ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}`}></div>
                  )}
@@ -592,7 +642,7 @@ const PersonalDashboard = ({
                  <div className={`text-sm ${t.text}`}>
                    {log.type === 'master' ? (
                      <span className="flex items-center gap-2">
-                       <span className="text-green-600 font-medium bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded text-xs">已掌握</span>
+                       <span className={`font-medium px-2 py-0.5 rounded text-xs ${statusT.masteredBadge}`}>已掌握</span>
                        已掌握题目 <span 
                          onClick={() => onNavigate(log.problemId)}
                          className="font-medium cursor-pointer hover:underline hover:text-indigo-600 transition-colors"
@@ -600,7 +650,7 @@ const PersonalDashboard = ({
                      </span>
                    ) : (
                      <span className="flex items-center gap-2">
-                       <span className="text-red-600 font-medium bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded text-xs">学习中</span>
+                       <span className={`font-medium px-2 py-0.5 rounded text-xs ${statusT.learningBadge}`}>学习中</span>
                        新增题目 <span 
                          onClick={() => onNavigate(log.problemId)}
                          className="font-medium cursor-pointer hover:underline hover:text-indigo-600 transition-colors"
@@ -1459,7 +1509,7 @@ const tableOfContents = React.useMemo(() => {
                         {selectedIds.has(problem.id) ? <CheckSquare size={16} /> : <Square size={16} />}
                       </div>
                     ) : (
-                      <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${problem.status === 'mastered' ? 'bg-green-500 ring-2 ring-green-200 dark:ring-green-900' : 'bg-gray-300 dark:bg-gray-600'}`} title={problem.status === 'mastered' ? '已掌握' : '学习中'} />
+                      <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${problem.status === 'mastered' ? statusT.masteredDot : statusT.learningDot}`} title={problem.status === 'mastered' ? '已掌握' : '学习中'} />
                     )}
                     
                     <div className="flex-1 min-w-0">
@@ -1626,7 +1676,7 @@ const tableOfContents = React.useMemo(() => {
                           {/* Mastery Toggle */}
                           <button 
                              onClick={() => toggleStatus(selectedProblem.id)}
-                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm font-medium transition-all ${selectedProblem.status === 'mastered' ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400' : `${t.headerBorder} ${t.textMuted} hover:${t.text}`}`}
+                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm font-medium transition-all ${selectedProblem.status === 'mastered' ? statusT.masteredButton : `${t.headerBorder} ${t.textMuted} hover:${t.text}`}`}
                              title={selectedProblem.status === 'mastered' ? '标记为学习中' : '标记为已掌握'}
                           >
                              {selectedProblem.status === 'mastered' ? <CheckCircle2 size={16} /> : <Circle size={16} />}
@@ -1802,7 +1852,7 @@ const tableOfContents = React.useMemo(() => {
                             </div>
                             
                             {/* Mastery Badge */}
-                            <div className={`flex items-center gap-1 text-xs px-2 py-1 rounded ${selectedProblem.status === 'mastered' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
+                            <div className={`flex items-center gap-1 text-xs px-2 py-1 rounded ${selectedProblem.status === 'mastered' ? statusT.masteredMeta : statusT.learningMeta}`}>
                                {selectedProblem.status === 'mastered' ? <CheckCircle2 size={12}/> : <Target size={12}/>}
                                {selectedProblem.status === 'mastered' ? '已掌握' : '学习中'}
                             </div>
